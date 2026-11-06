@@ -1,0 +1,329 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../../app/Enums/*.php';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
+
+@theme {
+    --font-sans: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
+
+    --color-brand-ink: #0C2A34;
+    --color-brand-teal: #61D7C8;
+    --color-brand-orange: #F9A51A;
+
+    --color-surface: #FFFFFF;
+    --color-surface-muted: #F4F8F8;
+    --color-ink: #18343A;
+
+    --color-success: #15803D;
+    --color-warning: #B45309;
+    --color-danger: #B91C1C;
+    --color-info: #0369A1;
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 6rem;
+    }
+
+    body {
+        @apply bg-surface-muted text-ink font-sans antialiased;
+        overflow-x: clip;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-brand-teal);
+        outline-offset: 2px;
+    }
+
+    ::selection {
+        background-color: var(--color-brand-teal);
+        color: var(--color-brand-ink);
+    }
+
+    dialog::backdrop {
+        background-color: rgb(12 42 52 / 0.65);
+    }
+
+    dialog {
+        max-height: calc(100dvh - 2rem);
+        overflow-y: auto;
+    }
+
+    [data-admin-layout],
+    [data-admin-layout] * {
+        scrollbar-width: thin;
+        scrollbar-color: rgb(12 42 52 / 0.24) transparent;
+    }
+
+    [data-admin-layout]::-webkit-scrollbar,
+    [data-admin-layout] *::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    [data-admin-layout]::-webkit-scrollbar-track,
+    [data-admin-layout] *::-webkit-scrollbar-track,
+    [data-admin-layout]::-webkit-scrollbar-corner,
+    [data-admin-layout] *::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+    [data-admin-layout]::-webkit-scrollbar-thumb,
+    [data-admin-layout] *::-webkit-scrollbar-thumb {
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background-color: rgb(12 42 52 / 0.24);
+        background-clip: content-box;
+    }
+
+    [data-admin-layout]::-webkit-scrollbar-thumb:hover,
+    [data-admin-layout] *::-webkit-scrollbar-thumb:hover {
+        background-color: rgb(12 42 52 / 0.4);
+    }
+
+    #admin-sidebar,
+    #admin-sidebar * {
+        scrollbar-color: rgb(97 215 200 / 0.38) transparent;
+    }
+
+    #admin-sidebar::-webkit-scrollbar-thumb,
+    #admin-sidebar *::-webkit-scrollbar-thumb {
+        background-color: rgb(97 215 200 / 0.38);
+    }
+
+    #admin-sidebar::-webkit-scrollbar-thumb:hover,
+    #admin-sidebar *::-webkit-scrollbar-thumb:hover {
+        background-color: rgb(97 215 200 / 0.6);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+@layer components {
+    .container-page {
+        @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+    }
+
+    .btn {
+        @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50;
+        touch-action: manipulation;
+    }
+
+    .btn-primary {
+        @apply bg-brand-orange text-brand-ink shadow-sm shadow-brand-orange/25 hover:-translate-y-0.5 hover:brightness-95 hover:shadow-md active:translate-y-0;
+    }
+
+    .btn-secondary {
+        @apply bg-brand-ink text-white shadow-sm hover:-translate-y-0.5 hover:bg-brand-ink/90 hover:shadow-md active:translate-y-0;
+    }
+
+    .btn-outline {
+        @apply border border-brand-ink/15 bg-white text-brand-ink hover:border-brand-teal hover:bg-brand-teal/5;
+    }
+
+    .icon-button {
+        @apply inline-grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-brand-ink/10 bg-white text-slate-500 transition hover:border-brand-teal hover:bg-brand-teal/10 hover:text-brand-ink focus-visible:outline-none;
+        touch-action: manipulation;
+    }
+
+    .input {
+        @apply min-h-11 w-full rounded-xl border border-brand-ink/15 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-slate-400 focus:border-brand-teal focus:outline-none focus:ring-2 focus:ring-brand-teal/30 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-slate-500;
+    }
+
+    .card {
+        @apply rounded-2xl border border-brand-ink/10 bg-white shadow-sm;
+    }
+
+    .card-hover {
+        @apply transition hover:-translate-y-0.5 hover:border-brand-teal/40 hover:shadow-md;
+    }
+
+    .badge {
+        @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold;
+    }
+
+    .tap-link {
+        @apply inline-flex min-h-11 items-center transition;
+        touch-action: manipulation;
+    }
+
+    .table-action {
+        @apply inline-flex min-h-9 items-center rounded-lg px-2 text-xs font-bold transition;
+        touch-action: manipulation;
+    }
+
+    .carousel-slide {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s ease;
+    }
+
+    .carousel-slide.is-active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+@media (max-width: 767px) {
+    .responsive-table {
+        min-width: 0 !important;
+    }
+
+    .table-action {
+        min-height: 2.75rem;
+        padding-inline: 0.625rem;
+    }
+
+    .responsive-table,
+    .responsive-table tbody,
+    .responsive-table tr,
+    .responsive-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .responsive-table thead {
+        display: none;
+    }
+
+    .responsive-table tr {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid rgb(12 42 52 / 0.08);
+    }
+
+    .responsive-table tr:last-child {
+        border-bottom: 0;
+    }
+
+    .responsive-table td {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.375rem 0;
+        border: 0;
+        text-align: start;
+        overflow-wrap: anywhere;
+    }
+
+    .responsive-table td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #64748b;
+    }
+}
+
+@media print {
+    @page {
+        size: A4;
+        margin: 12mm;
+    }
+
+    .responsive-table {
+        display: table !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .responsive-table thead {
+        display: table-header-group !important;
+    }
+
+    .responsive-table tbody {
+        display: table-row-group !important;
+    }
+
+    .responsive-table tr {
+        display: table-row !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    .responsive-table th,
+    .responsive-table td {
+        display: table-cell !important;
+        width: auto !important;
+        padding: 4px 6px !important;
+        text-align: start !important;
+    }
+
+    .responsive-table td::before {
+        content: none !important;
+    }
+
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    a {
+        color: inherit !important;
+        text-decoration: none !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .invoice-page {
+        max-width: none;
+        padding: 0 !important;
+    }
+
+    .invoice-header {
+        border: 1px solid #e2e8f0;
+        border-radius: 0;
+        background: #ffffff !important;
+        color: #0c2a34 !important;
+    }
+
+    .invoice-header-site-name {
+        color: #0c2a34 !important;
+    }
+
+    .invoice-header-subtitle {
+        color: #64748b !important;
+    }
+
+    .invoice-document {
+        border: 0;
+        border-radius: 0;
+        padding: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .invoice-document table {
+        font-size: 11px;
+    }
+
+    .invoice-document thead {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .invoice-document tr {
+        break-inside: avoid;
+    }
+}

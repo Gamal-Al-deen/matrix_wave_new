@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900">
+  <defs><linearGradient id="tabletBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ecfff8"/><stop offset="1" stop-color="#c9f1df"/></linearGradient></defs>
+  <rect width="900" height="900" fill="url(#tabletBg)"/>
+  <circle cx="710" cy="180" r="180" fill="#f7a83b" opacity="0.14"/>
+  <circle cx="180" cy="740" r="210" fill="#0c2a34" opacity="0.05"/>
+  <g transform="translate(175 250) rotate(-8)">
+    <rect width="550" height="400" rx="42" fill="#0c2a34"/>
+    <rect x="18" y="18" width="514" height="364" rx="30" fill="#e8fffb"/>
+    <rect x="52" y="54" width="180" height="18" rx="9" fill="#0c2a34" opacity="0.2"/>
+    <rect x="52" y="94" width="420" height="150" rx="22" fill="#5fe0d2" opacity="0.55"/>
+    <rect x="52" y="272" width="280" height="16" rx="8" fill="#0c2a34" opacity="0.14"/>
+    <rect x="52" y="308" width="180" height="16" rx="8" fill="#0c2a34" opacity="0.1"/>
+    <rect x="394" y="288" width="78" height="48" rx="16" fill="#f7a83b"/>
+  </g>
+</svg>

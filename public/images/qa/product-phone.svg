@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900">
+  <defs><linearGradient id="phoneBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8fbf8"/><stop offset="1" stop-color="#c7ece7"/></linearGradient></defs>
+  <rect width="900" height="900" fill="url(#phoneBg)"/>
+  <circle cx="700" cy="180" r="170" fill="#0c2a34" opacity="0.06"/>
+  <circle cx="200" cy="760" r="220" fill="#f7a83b" opacity="0.12"/>
+  <g transform="translate(285 105) rotate(6)">
+    <rect width="330" height="690" rx="62" fill="#0c2a34"/>
+    <rect x="14" y="14" width="302" height="662" rx="50" fill="#123f4c"/>
+    <rect x="35" y="45" width="260" height="570" rx="30" fill="#dffbf6"/>
+    <rect x="110" y="27" width="110" height="16" rx="8" fill="#071b22"/>
+    <rect x="62" y="85" width="205" height="26" rx="13" fill="#0c2a34" opacity="0.2"/>
+    <rect x="62" y="135" width="135" height="18" rx="9" fill="#0c2a34" opacity="0.12"/>
+    <rect x="62" y="190" width="205" height="160" rx="24" fill="#5fe0d2" opacity="0.55"/>
+    <rect x="62" y="380" width="205" height="18" rx="9" fill="#0c2a34" opacity="0.16"/>
+    <rect x="62" y="418" width="160" height="18" rx="9" fill="#0c2a34" opacity="0.1"/>
+    <rect x="62" y="485" width="205" height="82" rx="22" fill="#f7a83b"/>
+  </g>
+</svg>
