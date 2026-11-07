@@ -21,6 +21,7 @@
                 class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
                 loading="lazy"
                 decoding="async"
+                data-cart-product-image
             >
         @else
             <span class="grid h-full place-items-center text-slate-400" aria-hidden="true">
@@ -63,7 +64,7 @@
             </a>
 
             @if ($available)
-                <form method="POST" action="{{ route('cart.store', $product->slug) }}" class="contents">
+                <form method="POST" action="{{ route('cart.store', $product->slug) }}" class="contents" data-add-to-cart>
                     @csrf
                     <input type="hidden" name="quantity" value="1">
                     <button type="submit" class="btn btn-primary gap-1.5 px-3 py-2 text-xs" aria-label="أضف {{ $product->name }} إلى السلة">

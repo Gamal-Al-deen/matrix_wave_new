@@ -175,14 +175,29 @@ class OrderService
     private function notifyAdmins(Order $order): void
     {
         try {
-            User::query()
+            $admins = User::query()
                 ->where('role', UserRole::Admin->value)
-                ->each(fn (User $admin) => $admin->notify(new NewOrderPlacedNotification($order)));
+                ->get();
         } catch (\Throwable $exception) {
             Log::error('Failed to notify administrators about a new order.', [
                 'order_id' => $order->getKey(),
                 'exception' => $exception,
             ]);
+
+            return;
+        }
+
+        foreach ($admins as $admin) {
+            try {
+                $admin->notify(new NewOrderPlacedNotification($order));
+            } catch (\Throwable $exception) {
+                // One failing administrator must not block the others.
+                Log::error('Failed to notify administrators about a new order.', [
+                    'order_id' => $order->getKey(),
+                    'admin_id' => $admin->getKey(),
+                    'exception' => $exception,
+                ]);
+            }
         }
     }
 

@@ -169,29 +169,11 @@
         </header>
 
         <main class="p-4 sm:p-6 lg:p-8">
-            @if (session('status'))
-                <div class="mb-4"><x-alert type="success" :message="session('status')" /></div>
-            @endif
-
-            @if (session('error'))
-                <div class="mb-4"><x-alert type="error" :message="session('error')" /></div>
-            @endif
-
-            @if ($errors->any())
-                <div class="mb-4">
-                    <x-alert type="error">
-                        <ul class="list-inside list-disc space-y-1">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </x-alert>
-                </div>
-            @endif
-
             @yield('content')
         </main>
     </div>
+
+    <x-toast-stack />
 
     @auth
         <div

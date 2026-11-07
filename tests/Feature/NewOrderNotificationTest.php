@@ -238,6 +238,28 @@ class NewOrderNotificationTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), 'data-notification-poller'));
     }
 
+    public function test_storefront_admin_links_carry_no_duplicate_notification_badge(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->get(route('notifications.index'));
+
+        $response->assertOk();
+
+        $html = $response->getContent();
+
+        preg_match_all('/<a\b[^>]*href="[^"]*\/admin"[^>]*>.*?<\/a>/su', $html, $matches);
+
+        $this->assertNotEmpty($matches[0]);
+
+        foreach ($matches[0] as $adminLink) {
+            $this->assertStringNotContainsString('data-notification-badge', $adminLink);
+        }
+
+        // The dedicated notification bell keeps its badge.
+        $this->assertGreaterThanOrEqual(1, substr_count($html, 'data-notification-badge'));
+    }
+
     private function service(): OrderService
     {
         return app(OrderService::class);

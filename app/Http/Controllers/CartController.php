@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Services\Cart\CartService;
 use App\Support\Currency;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 
 class CartController extends Controller
@@ -24,8 +25,16 @@ class CartController extends Controller
         AddToCartRequest $request,
         Product $product,
         CartService $cart,
-    ): RedirectResponse {
+    ): RedirectResponse|JsonResponse {
         $cart->add($product, $request->integer('quantity', 1));
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تمت إضافة المنتج إلى السلة',
+                'cart_count' => $cart->count(),
+            ]);
+        }
 
         return back()->with('status', 'تمت إضافة المنتج إلى السلة.');
     }

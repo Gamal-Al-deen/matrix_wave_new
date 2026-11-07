@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QA Viewports</title>
+    <style>
+        body { margin: 0; padding: 12px; background: #e2e8f0; font-family: system-ui, sans-serif; }
+        .case { margin-bottom: 18px; }
+        .label { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; font-size: 13px; font-weight: 700; color: #0c2a34; }
+        iframe { display: block; height: 700px; border: 2px solid #0c2a34; background: #fff; }
+    </style>
+</head>
+<body>
+    <div id="cases"></div>
+    <script>
+        const widths = [320, 360, 390, 414, 768, 1024, 1280];
+        const cases = document.getElementById('cases');
+
+        for (const width of widths) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'case';
+            wrapper.dataset.width = String(width);
+
+            const label = document.createElement('div');
+            label.className = 'label';
+            label.textContent = width + 'px';
+
+            const frame = document.createElement('iframe');
+            frame.width = String(width);
+            frame.height = '700';
+            frame.dataset.width = String(width);
+            frame.src = '/';
+
+            wrapper.append(label, frame);
+            cases.append(wrapper);
+        }
+    </script>
+</body>
+</html>

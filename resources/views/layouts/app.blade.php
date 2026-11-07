@@ -28,42 +28,14 @@
     <x-header :unread-count="$unreadCount ?? null" />
 
     <main id="main-content" class="min-h-[60vh]">
-        @if (session('status'))
-            <div class="container-page pt-4">
-                <x-alert type="success" :message="session('status')" />
-            </div>
-        @endif
-
-        @if (session('success'))
-            <div class="container-page pt-4">
-                <x-alert type="success" :message="session('success')" />
-            </div>
-        @endif
-
-        @if (session('error'))
-            <div class="container-page pt-4">
-                <x-alert type="error" :message="session('error')" />
-            </div>
-        @endif
-
-        @if ($errors->any())
-            <div class="container-page pt-4">
-                <x-alert type="error">
-                    <ul class="list-inside list-disc space-y-1">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </x-alert>
-            </div>
-        @endif
-
         @yield('content')
     </main>
 
     <x-footer />
 
     <x-mobile-bottom-nav />
+
+    <x-toast-stack :above-bottom-nav="true" />
 
     @auth
         <div

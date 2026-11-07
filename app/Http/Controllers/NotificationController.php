@@ -16,14 +16,19 @@ class NotificationController extends Controller
 {
     public function index(Request $request): View
     {
-        $notifications = $request->user()
-            ->notifications()
+        $user = $request->user();
+
+        // Opening the notifications page counts as reading everything that is
+        // already waiting, so the unread badge disappears immediately.
+        $user->unreadNotifications()->update(['read_at' => now()]);
+
+        $notifications = $user->notifications()
             ->latest('created_at')
             ->paginate(20);
 
         return view('notifications.index', [
             'notifications' => $notifications,
-            'unreadCount' => $request->user()->unreadNotifications()->count(),
+            'unreadCount' => $user->unreadNotifications()->count(),
         ]);
     }
 

@@ -151,7 +151,7 @@ onReady(() => {
         });
     });
 
-    document.querySelectorAll('[data-submit-once]').forEach((form) => {
+    document.querySelectorAll('form[data-submit-once]:not([data-add-to-cart])').forEach((form) => {
         form.addEventListener('submit', () => {
             const button = form.querySelector('button[type="submit"]');
 
@@ -564,5 +564,467 @@ onReady(() => {
         });
 
         updateStatus();
+    });
+
+    /*
+     * Temporary toast notifications.
+     *
+     * Server-rendered flash messages arrive inside [data-toast] nodes so they
+     * stay visible even before JavaScript runs. This module only adds timers,
+     * pause/resume behaviour, dismissal and a small API for future messages.
+     */
+    const toastRegion = document.querySelector('[data-toast-region]');
+    const toastStack = toastRegion?.querySelector('[data-toast-stack]');
+    const toastTemplate = toastRegion?.querySelector('template[data-toast-template]');
+    const toastTimers = new WeakMap();
+    const recentToasts = new Map();
+    const maxToasts = 4;
+    const toastMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const toastIconMarkup = (type) => {
+        const paths = {
+            success: '<path d="m5 12 4 4L19 6"></path>',
+            error: '<circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path>',
+            warning: '<path d="M12 3 2.8 20h18.4z"></path><path d="M12 9v5M12 17.5v.01"></path>',
+            info: '<circle cx="12" cy="12" r="9"></circle><path d="M12 10.5V17M12 7.5v.01"></path>',
+        };
+
+        return `<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths[type] || paths.info}</svg>`;
+    };
+
+    const clearToastTimer = (toast) => {
+        const timer = toastTimers.get(toast);
+
+        if (timer?.id) {
+            window.clearTimeout(timer.id);
+        }
+
+        toastTimers.delete(toast);
+    };
+
+    const dismissToast = (toast) => {
+        if (! toast || toast.dataset.leaving === '1') {
+            return;
+        }
+
+        toast.dataset.leaving = '1';
+        clearToastTimer(toast);
+
+        if (toastMotion.matches) {
+            toast.remove();
+            return;
+        }
+
+        toast.classList.add('is-leaving');
+        window.setTimeout(() => toast.remove(), 220);
+    };
+
+    const scheduleToast = (toast, duration) => {
+        clearToastTimer(toast);
+
+        const timer = {
+            id: window.setTimeout(() => dismissToast(toast), duration),
+            duration,
+            remaining: duration,
+            startedAt: Date.now(),
+        };
+
+        toastTimers.set(toast, timer);
+    };
+
+    const pauseToast = (toast) => {
+        const timer = toastTimers.get(toast);
+
+        if (! timer || ! timer.id) {
+            return;
+        }
+
+        window.clearTimeout(timer.id);
+        timer.remaining = Math.max(0, timer.remaining - (Date.now() - timer.startedAt));
+        timer.id = null;
+        toastTimers.set(toast, timer);
+    };
+
+    const resumeToast = (toast) => {
+        const timer = toastTimers.get(toast);
+
+        if (! timer || timer.id) {
+            return;
+        }
+
+        timer.startedAt = Date.now();
+        timer.id = window.setTimeout(() => dismissToast(toast), timer.remaining);
+        toastTimers.set(toast, timer);
+    };
+
+    const setupToast = (toast, type, duration) => {
+        if (! toast || toast.dataset.toastReady === '1') {
+            return;
+        }
+
+        toast.dataset.toastReady = '1';
+        toast.dataset.type = type;
+        toast.classList.add(`toast--${type}`);
+        toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+
+        const icon = toast.querySelector('.toast__icon');
+
+        if (icon && ! icon.firstElementChild) {
+            icon.innerHTML = toastIconMarkup(type);
+        }
+
+        toast.querySelector('[data-toast-close]')?.addEventListener('click', () => dismissToast(toast));
+        toast.addEventListener('mouseenter', () => pauseToast(toast));
+        toast.addEventListener('mouseleave', () => resumeToast(toast));
+        toast.addEventListener('focusin', () => pauseToast(toast));
+        toast.addEventListener('focusout', (event) => {
+            if (! toast.contains(event.relatedTarget)) {
+                resumeToast(toast);
+            }
+        });
+
+        scheduleToast(toast, duration);
+    };
+
+    const showToast = (type, message, options = {}) => {
+        if (! toastStack || ! toastTemplate || typeof message !== 'string' || message.trim() === '') {
+            return null;
+        }
+
+        const safeType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
+        const defaultDuration = safeType === 'error' || safeType === 'warning' ? 6000 : 4000;
+        const requestedDuration = Number(options.duration);
+        const duration = Number.isFinite(requestedDuration) && requestedDuration > 0
+            ? Math.max(1000, requestedDuration)
+            : defaultDuration;
+
+        const key = `${safeType}|${message.trim()}`;
+        const now = Date.now();
+        const previous = recentToasts.get(key);
+
+        if (previous && now - previous < 800) {
+            return null;
+        }
+
+        recentToasts.set(key, now);
+        recentToasts.forEach((timestamp, storedKey) => {
+            if (now - timestamp > 5000) {
+                recentToasts.delete(storedKey);
+            }
+        });
+
+        const toast = toastTemplate.content.firstElementChild?.cloneNode(true);
+
+        if (! toast) {
+            return null;
+        }
+
+        toast.dataset.duration = String(duration);
+        toast.querySelector('.toast__message').textContent = message.trim();
+        setupToast(toast, safeType, duration);
+        toastStack.appendChild(toast);
+
+        const visibleToasts = Array.from(toastStack.querySelectorAll('[data-toast]:not([data-leaving="1"])'));
+
+        if (visibleToasts.length > maxToasts) {
+            visibleToasts.slice(0, visibleToasts.length - maxToasts).forEach(dismissToast);
+        }
+
+        return toast;
+    };
+
+    if (toastStack) {
+        toastStack.querySelectorAll('[data-toast]').forEach((toast) => {
+            const type = ['success', 'error', 'warning', 'info'].includes(toast.dataset.type)
+                ? toast.dataset.type
+                : 'info';
+            const parsedDuration = Number.parseInt(toast.dataset.duration || '', 10);
+            const duration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 4000;
+
+            setupToast(toast, type, duration);
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            toastStack.querySelectorAll('[data-toast]').forEach((toast) => {
+                if (document.hidden) {
+                    pauseToast(toast);
+                } else {
+                    resumeToast(toast);
+                }
+            });
+        });
+    }
+
+    window.MatrixWaveToast = {
+        show: showToast,
+        success: (message, options) => showToast('success', message, options),
+        error: (message, options) => showToast('error', message, options),
+        warning: (message, options) => showToast('warning', message, options),
+        info: (message, options) => showToast('info', message, options),
+    };
+
+    document.addEventListener('matrix-wave:toast', (event) => {
+        const detail = event.detail || {};
+
+        showToast(detail.type || 'info', detail.message, { duration: detail.duration });
+    });
+
+    /*
+     * Add-to-cart confirmation: only animate after the server accepted the
+     * request, then trust the server-provided cart count.
+     */
+    const cartLink = document.querySelector('[data-cart-link]');
+    const cartBadge = cartLink?.querySelector('[data-cart-count]');
+    const cartMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const cartAriaLabel = (count) => {
+        if (! cartLink) {
+            return '';
+        }
+
+        const singular = cartLink.getAttribute('data-cart-label-singular') || 'سلة المشتريات — {count} منتج';
+        const plural = cartLink.getAttribute('data-cart-label-plural') || 'سلة المشتريات — {count} منتجات';
+
+        return (count === 1 ? singular : plural).replace('{count}', String(count));
+    };
+
+    const applyCartCount = (count) => {
+        const safeCount = Math.max(0, Number(count) || 0);
+
+        if (cartBadge) {
+            cartBadge.textContent = String(safeCount);
+        }
+
+        cartLink?.setAttribute('aria-label', cartAriaLabel(safeCount));
+    };
+
+    const pulseCartIcon = () => {
+        if (! cartLink) {
+            return;
+        }
+
+        cartLink.classList.remove('is-cart-receiving');
+        void cartLink.offsetWidth;
+        cartLink.classList.add('is-cart-receiving');
+        window.setTimeout(() => cartLink.classList.remove('is-cart-receiving'), 900);
+
+        if (cartBadge) {
+            cartBadge.classList.remove('is-bumping');
+            void cartBadge.offsetWidth;
+            cartBadge.classList.add('is-bumping');
+            window.setTimeout(() => cartBadge.classList.remove('is-bumping'), 900);
+        }
+    };
+
+    const productImageFor = (form) => {
+        const direct = form.querySelector('[data-cart-product-image]');
+
+        if (direct) {
+            return direct;
+        }
+
+        const card = form.closest('article');
+
+        if (card) {
+            const image = card.querySelector('[data-cart-product-image]');
+
+            if (image) {
+                return image;
+            }
+        }
+
+        const section = form.closest('section');
+
+        if (section) {
+            const image = section.querySelector('[data-cart-product-image]');
+
+            if (image) {
+                return image;
+            }
+        }
+
+        return document.getElementById('product-gallery-main');
+    };
+
+    const flyProductImage = (image, cartTarget) => {
+        if (! image || ! cartTarget || cartMotion.matches || document.hidden) {
+            return false;
+        }
+
+        const source = image.currentSrc || image.src;
+
+        if (! source || ! image.complete || image.naturalWidth === 0) {
+            return false;
+        }
+
+        const start = image.getBoundingClientRect();
+        const end = cartTarget.getBoundingClientRect();
+
+        if (start.width < 8 || start.height < 8 || end.width < 8 || end.height < 8) {
+            return false;
+        }
+
+        if (end.bottom < 0 || end.top > window.innerHeight) {
+            return false;
+        }
+
+        const clone = document.createElement('img');
+        clone.src = source;
+        clone.alt = '';
+        clone.setAttribute('aria-hidden', 'true');
+        clone.className = 'cart-fly-image';
+        clone.style.left = `${start.left}px`;
+        clone.style.top = `${start.top}px`;
+        clone.style.width = `${start.width}px`;
+        clone.style.height = `${start.height}px`;
+
+        const radius = window.getComputedStyle(image).borderRadius;
+
+        if (radius) {
+            clone.style.borderRadius = radius;
+        }
+
+        document.body.appendChild(clone);
+
+        const startCenterX = start.left + start.width / 2;
+        const startCenterY = start.top + start.height / 2;
+        const endCenterX = end.left + end.width / 2;
+        const endCenterY = end.top + end.height / 2;
+        const deltaX = endCenterX - startCenterX;
+        const deltaY = endCenterY - startCenterY;
+        const arc = -Math.min(90, Math.max(36, Math.abs(deltaX) * 0.18 + 36));
+        const removeClone = () => clone.remove();
+
+        if (typeof clone.animate !== 'function') {
+            clone.style.transition = 'transform 650ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 650ms ease';
+
+            window.requestAnimationFrame(() => {
+                clone.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(0.12)`;
+                clone.style.opacity = '0.15';
+            });
+
+            window.setTimeout(removeClone, 780);
+
+            return true;
+        }
+
+        const animation = clone.animate([
+            { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+            {
+                transform: `translate(${deltaX * 0.52}px, ${deltaY * 0.52 + arc}px) scale(0.55)`,
+                opacity: 0.9,
+                offset: 0.55,
+            },
+            { transform: `translate(${deltaX}px, ${deltaY}px) scale(0.12)`, opacity: 0.15 },
+        ], {
+            duration: 650,
+            easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
+            fill: 'forwards',
+        });
+
+        animation.finished.then(removeClone).catch(removeClone);
+        window.setTimeout(removeClone, 900);
+
+        return true;
+    };
+
+    document.querySelectorAll('form[data-add-to-cart]').forEach((form) => {
+        const button = form.querySelector('button[type="submit"]');
+
+        form.addEventListener('submit', async (event) => {
+            if (form.dataset.busy === '1') {
+                event.preventDefault();
+                return;
+            }
+
+            if (typeof window.fetch !== 'function' || typeof window.FormData !== 'function') {
+                return;
+            }
+
+            event.preventDefault();
+
+            const image = productImageFor(form);
+            const originalButtonHtml = button ? button.innerHTML : '';
+            const originalAriaBusy = button?.getAttribute('aria-busy');
+
+            form.dataset.busy = '1';
+
+            if (button) {
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                button.classList.add('cursor-not-allowed', 'opacity-60');
+            }
+
+            try {
+                const response = await window.fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: new window.FormData(form),
+                    credentials: 'same-origin',
+                });
+
+                let data = null;
+
+                try {
+                    data = await response.json();
+                } catch (error) {
+                    data = null;
+                }
+
+                if (! response.ok || ! data || data.success !== true) {
+                    const firstError = data?.errors && typeof data.errors === 'object'
+                        ? Object.values(data.errors)
+                            .flat()
+                            .find((message) => typeof message === 'string' && message.trim() !== '')
+                        : null;
+                    const message = firstError
+                        || data?.message
+                        || (response.status === 419
+                            ? 'انتهت الجلسة. حدّث الصفحة وحاول مرة أخرى.'
+                            : 'تعذر إضافة المنتج إلى السلة. حاول مرة أخرى.');
+
+                    showToast('error', message, { duration: 6000 });
+
+                    return;
+                }
+
+                const count = data?.cart_count;
+
+                if (count !== undefined && count !== null && Number.isFinite(Number(count))) {
+                    applyCartCount(count);
+                }
+
+                const started = flyProductImage(image, cartLink);
+
+                if (started) {
+                    window.setTimeout(pulseCartIcon, 620);
+                } else {
+                    pulseCartIcon();
+                }
+
+                showToast('success', data?.message || 'تمت إضافة المنتج إلى السلة', { duration: 4000 });
+            } catch (error) {
+                showToast('error', 'تعذر إضافة المنتج إلى السلة. تحقق من اتصالك وحاول مرة أخرى.', { duration: 6000 });
+            } finally {
+                form.dataset.busy = '0';
+
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = originalButtonHtml;
+
+                    if (originalAriaBusy === null) {
+                        button.removeAttribute('aria-busy');
+                    } else {
+                        button.setAttribute('aria-busy', originalAriaBusy);
+                    }
+
+                    button.classList.remove('cursor-not-allowed', 'opacity-60');
+                }
+            }
+        });
     });
 });

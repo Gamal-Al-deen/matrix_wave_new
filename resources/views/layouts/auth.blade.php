@@ -81,26 +81,6 @@
                     @endif
                 </div>
 
-                @if (session('status'))
-                    <div class="mb-4"><x-alert type="success" :message="session('status')" /></div>
-                @endif
-
-                @if (session('error'))
-                    <div class="mb-4"><x-alert type="error" :message="session('error')" /></div>
-                @endif
-
-                @if ($errors->any())
-                    <div class="mb-4">
-                        <x-alert type="error">
-                            <ul class="list-inside list-disc space-y-1">
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </x-alert>
-                    </div>
-                @endif
-
                 @yield('content')
 
                 <a href="{{ route('home') }}" class="tap-link mt-6 justify-center text-sm font-bold text-brand-ink/70 hover:text-brand-ink">
@@ -110,6 +90,8 @@
             </section>
         </main>
     </div>
+
+    <x-toast-stack />
 
     @stack('scripts')
 </body>

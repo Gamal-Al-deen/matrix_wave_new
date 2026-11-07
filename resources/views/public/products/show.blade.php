@@ -27,6 +27,7 @@
                             alt="{{ $mainImage->alt_text ?: $product->name }}"
                             class="h-full w-full object-contain"
                             fetchpriority="high"
+                            data-cart-product-image
                         >
                     @else
                         <span class="grid h-full place-items-center text-slate-400" aria-hidden="true">
@@ -108,7 +109,7 @@
 
                 @if ($available)
                     <div class="space-y-3 rounded-2xl border border-brand-ink/10 bg-white p-4 sm:p-5">
-                        <form method="POST" action="{{ route('cart.store', $product->slug) }}" data-submit-once>
+                        <form method="POST" action="{{ route('cart.store', $product->slug) }}" data-submit-once data-add-to-cart>
                             @csrf
                             <input type="hidden" name="quantity" value="1">
                             <button type="submit" class="btn btn-primary w-full sm:w-auto" aria-label="أضف {{ $product->name }} إلى السلة">

@@ -131,10 +131,17 @@
             @endauth
 
             @if (Route::has('cart.index'))
-                <a href="{{ route('cart.index') }}" class="relative inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/90 hover:bg-white/10 hover:text-white" aria-label="سلة المشتريات — {{ $cartCount }} {{ $cartCount === 1 ? 'منتج' : 'منتجات' }}">
+                <a
+                    href="{{ route('cart.index') }}"
+                    data-cart-link
+                    data-cart-label-singular="سلة المشتريات — {count} منتج"
+                    data-cart-label-plural="سلة المشتريات — {count} منتجات"
+                    class="relative inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/90 hover:bg-white/10 hover:text-white"
+                    aria-label="سلة المشتريات — {{ $cartCount }} {{ $cartCount === 1 ? 'منتج' : 'منتجات' }}"
+                >
                     <x-icon name="cart" class="h-5 w-5" />
                     <span class="hidden lg:inline">السلة</span>
-                    <span class="absolute end-0.5 top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand-orange px-1 text-[0.7rem] font-extrabold text-brand-ink lg:static lg:end-auto lg:top-auto" aria-hidden="true">{{ $cartCount }}</span>
+                    <span data-cart-count class="absolute end-0.5 top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand-orange px-1 text-[0.7rem] font-extrabold text-brand-ink lg:static lg:end-auto lg:top-auto" aria-hidden="true">{{ $cartCount }}</span>
                 </a>
             @else
                 <span class="relative inline-flex min-h-11 cursor-not-allowed items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/45" aria-disabled="true" aria-label="سلة المشتريات" title="السلة قريبًا">
@@ -261,14 +268,6 @@
                         <a href="{{ route('admin.dashboard') }}" class="flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-bold text-brand-teal hover:bg-white/10">
                             <x-icon name="dashboard" class="h-5 w-5" />
                             لوحة الإدارة
-                            <span
-                                data-notification-badge
-                                @class([
-                                    'ms-auto rounded-full bg-brand-orange px-2 py-0.5 text-[0.7rem] font-extrabold text-brand-ink',
-                                    'hidden' => $unreadNotifications === 0,
-                                ])
-                                aria-hidden="true"
-                            >{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
                         </a>
                     @endif
 
