@@ -8,13 +8,78 @@ use App\Http\Requests\Admin\ProductImagesRequest;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Services\Storage\ImageStorageService;
+use App\Support\ImageRules;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ProductImageController extends Controller
 {
+    /**
+     * Session key holding images uploaded while creating a product that does
+     * not exist yet. The listing is cleared once the product is published.
+     */
+    public const DRAFT_SESSION_KEY = 'admin_product_draft_images';
+
+    /**
+     * Upload a single image while the product is still being created.
+     *
+     * The image is written to the storage disk immediately and its metadata is
+     * kept in the session so the create form can publish it atomically later.
+     */
+    public function storeDraft(Request $request, ImageStorageService $storage): JsonResponse
+    {
+        $this->authorize('create', Product::class);
+
+        $request->validate([
+            'image' => ImageRules::make(),
+        ], [], ['image' => 'الصورة']);
+
+        $drafts = (array) $request->session()->get(self::DRAFT_SESSION_KEY, []);
+        $limit = (int) config('media.max_product_images', 10);
+
+        if (count($drafts) >= $limit) {
+            throw ValidationException::withMessages([
+                'image' => "لا يمكن أن يتجاوز عدد صور المنتج {$limit} صورة.",
+            ]);
+        }
+
+        $stored = $storage->store($request->file('image'), $storage->folder('product', 'draft'));
+
+        $key = (string) Str::uuid();
+        $drafts[$key] = $stored->toArray();
+        $request->session()->put(self::DRAFT_SESSION_KEY, $drafts);
+
+        return response()->json([
+            'success' => true,
+            'key' => $key,
+            'url' => $stored->publicUrl,
+            'name' => $stored->originalName,
+            'message' => 'تم رفع الصورة بنجاح.',
+        ]);
+    }
+
+    /**
+     * Remove an image uploaded during product creation before publishing.
+     */
+    public function destroyDraft(Request $request, string $key, ImageStorageService $storage): JsonResponse
+    {
+        $this->authorize('create', Product::class);
+
+        $drafts = (array) $request->session()->get(self::DRAFT_SESSION_KEY, []);
+
+        if (isset($drafts[$key])) {
+            $storage->delete($drafts[$key]['storage_path'] ?? null);
+            unset($drafts[$key]);
+            $request->session()->put(self::DRAFT_SESSION_KEY, $drafts);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
     public function store(
         ProductImagesRequest $request,
         Product $product,

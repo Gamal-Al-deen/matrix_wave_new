@@ -107,6 +107,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::post('/products/{product}/images', [ProductImageController::class, 'store'])
             ->name('products.images.store');
+        Route::post('/products/images/draft', [ProductImageController::class, 'storeDraft'])
+            ->name('products.images.draft');
+        Route::delete('/products/images/draft/{key}', [ProductImageController::class, 'destroyDraft'])
+            ->name('products.images.draft.destroy');
         Route::post('/products/{product}/images/{image}/replace', [ProductImageController::class, 'replace'])
             ->name('products.images.replace');
         Route::patch('/products/{product}/images/{image}/move', [ProductImageController::class, 'move'])

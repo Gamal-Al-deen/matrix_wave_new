@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Http\Controllers\Admin\ProductImageController;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
@@ -160,6 +161,66 @@ class ProductImageManagementTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())
             ->delete(route('admin.products.images.destroy', [$other, $image]))
             ->assertNotFound();
+    }
+
+    public function test_administrators_can_upload_a_draft_image_before_the_product_exists(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)
+            ->postJson(route('admin.products.images.draft'), [
+                'image' => $this->png('draft.png'),
+            ]);
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $response->assertJsonStructure(['success', 'key', 'url', 'name', 'message']);
+
+        $key = $response->json('key');
+
+        $this->assertDatabaseCount('products', 0);
+
+        $drafts = session(ProductImageController::DRAFT_SESSION_KEY);
+        $this->assertIsArray($drafts);
+        $this->assertArrayHasKey($key, $drafts);
+        Storage::disk('supabase')->assertExists($drafts[$key]['storage_path']);
+    }
+
+    public function test_guests_cannot_upload_draft_images(): void
+    {
+        $this->post(route('admin.products.images.draft'), [
+            'image' => $this->png('draft.png'),
+        ])->assertRedirect(route('admin.login'));
+    }
+
+    public function test_draft_images_can_be_removed_before_publishing(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $key = $this->actingAs($admin)
+            ->postJson(route('admin.products.images.draft'), ['image' => $this->png('draft.png')])
+            ->json('key');
+
+        $path = session(ProductImageController::DRAFT_SESSION_KEY)[$key]['storage_path'];
+
+        $this->actingAs($admin)
+            ->deleteJson(route('admin.products.images.draft.destroy', $key))
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertArrayNotHasKey($key, session(ProductImageController::DRAFT_SESSION_KEY, []));
+        Storage::disk('supabase')->assertMissing($path);
+    }
+
+    public function test_draft_uploads_reject_non_image_files(): void
+    {
+        $this->actingAs(User::factory()->admin()->create())
+            ->postJson(route('admin.products.images.draft'), [
+                'image' => UploadedFile::fake()->createWithContent('notes.txt', 'not an image'),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('image');
+
+        $this->assertEmpty(session(ProductImageController::DRAFT_SESSION_KEY, []));
     }
 
     private function png(string $name): UploadedFile

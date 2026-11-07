@@ -3,15 +3,24 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\ProductStatus;
+use App\Http\Controllers\Admin\ProductImageController;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProductManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('supabase');
+    }
 
     public function test_guests_are_redirected_from_product_management(): void
     {
@@ -56,7 +65,8 @@ class ProductManagementTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.products.create'))
             ->assertOk()
-            ->assertSee('إضافة منتج');
+            ->assertSee('إضافة منتج')
+            ->assertSee('نشر المنتج');
 
         $this->actingAs($admin)
             ->get(route('admin.products.edit', $product))
@@ -68,38 +78,65 @@ class ProductManagementTest extends TestCase
     public function test_administrators_can_create_a_product(): void
     {
         $category = $this->makeCategory();
+        $key = 'draft-key-create';
 
-        $response = $this->actingAs(User::factory()->admin()->create())
+        $response = $this->withSession([
+            ProductImageController::DRAFT_SESSION_KEY => [$key => $this->draftImage()],
+        ])->actingAs(User::factory()->admin()->create())
             ->post(route('admin.products.store'), [
                 'category_id' => $category->id,
                 'name' => 'هاتف جديد',
                 'description' => 'وصف المنتج',
                 'price' => '199.99',
                 'status' => 'available',
+                'draft_images' => [$key],
             ]);
 
         $product = Product::query()->sole();
 
-        $response->assertRedirect(route('admin.products.edit', $product));
+        $response->assertRedirect(route('admin.products.index'));
+        $response->assertSessionHas('status', 'تم إضافة المنتج بنجاح');
 
         $this->assertSame('هاتف جديد', $product->name);
         $this->assertSame('199.99', $product->price);
         $this->assertSame('available', $product->status->value);
         $this->assertSame($category->id, $product->category_id);
         $this->assertNotEmpty($product->slug);
+        $this->assertSame(1, $product->images()->count());
+    }
+
+    public function test_creating_a_product_without_an_image_is_rejected(): void
+    {
+        $category = $this->makeCategory();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post(route('admin.products.store'), [
+                'category_id' => $category->id,
+                'name' => 'منتج بدون صورة',
+                'price' => '10.00',
+                'status' => 'available',
+            ])
+            ->assertSessionHasErrors('draft_images');
+
+        $this->assertDatabaseCount('products', 0);
     }
 
     public function test_product_slugs_are_made_unique_automatically(): void
     {
         $category = $this->makeCategory();
         $this->makeProduct($category, ['slug' => 'phone']);
+        $key = 'draft-key-slug';
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->withSession([
+            ProductImageController::DRAFT_SESSION_KEY => [$key => $this->draftImage()],
+        ])->actingAs(User::factory()->admin()->create())
             ->post(route('admin.products.store'), [
                 'category_id' => $category->id,
                 'name' => 'Phone',
                 'price' => '10',
                 'status' => 'available',
+                'draft_images' => [$key],
             ])
             ->assertRedirect();
 
@@ -123,15 +160,20 @@ class ProductManagementTest extends TestCase
     public function test_product_price_must_have_at_most_two_decimals(): void
     {
         $category = $this->makeCategory();
+        $key = 'draft-key-price';
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->withSession([
+            ProductImageController::DRAFT_SESSION_KEY => [$key => $this->draftImage()],
+        ])->actingAs(User::factory()->admin()->create())
             ->post(route('admin.products.store'), [
                 'category_id' => $category->id,
                 'name' => 'منتج',
                 'price' => '10.999',
                 'status' => 'available',
+                'draft_images' => [$key],
             ])
-            ->assertSessionHasErrors('price');
+            ->assertSessionHasErrors('price')
+            ->assertSessionDoesntHaveErrors('draft_images');
     }
 
     public function test_administrators_can_update_a_product(): void
@@ -199,6 +241,23 @@ class ProductManagementTest extends TestCase
             'description' => null,
             'is_active' => true,
         ]);
+    }
+
+    /**
+     * Build a stored-image payload matching what the draft upload endpoint
+     * keeps in the session, so publishing can resolve it.
+     *
+     * @return array<string, mixed>
+     */
+    private function draftImage(): array
+    {
+        return [
+            'storage_path' => 'products/draft/test.png',
+            'public_url' => 'https://example.test/products/draft/test.png',
+            'original_name' => 'test.png',
+            'mime_type' => 'image/png',
+            'size_bytes' => 1024,
+        ];
     }
 
     /**

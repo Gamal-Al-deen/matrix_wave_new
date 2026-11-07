@@ -213,53 +213,71 @@
 
     <section id="categories" class="container-page py-7 sm:py-10">
         <x-section-heading
-            title="التصنيفات"
-            description="اختر التصنيف الذي يناسبك للوصول إلى المنتجات بسرعة."
+            title="تسوّق حسب التصنيف"
+            description="اختر تصنيفًا لتصفية المنتجات مباشرة، أو ابدأ بـ «الكل» لعرض جميع المنتجات المتاحة."
             action-label="كل المنتجات"
             :action-url="route('products.index')"
         />
 
-        @if ($categories->isEmpty())
-            <x-empty-state
-                title="لا توجد تصنيفات بعد"
-                description="ستظهر التصنيفات هنا بعد إضافتها من لوحة الإدارة."
-            />
-        @else
-            <ul class="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
-                @foreach ($categories as $category)
-                    <li class="shrink-0 sm:shrink">
-                        <a
-                            href="{{ route('products.index', ['category' => $category->slug]) }}"
-                            class="card card-hover flex items-center gap-2.5 p-2.5 sm:justify-between sm:gap-3 sm:p-4"
-                        >
-                            <span class="flex min-w-0 items-center gap-2.5">
-                                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-teal/15 text-brand-ink sm:h-10 sm:w-10 sm:rounded-xl">
-                                    <x-icon name="tags" class="h-5 w-5" />
-                                </span>
-                                <span class="truncate text-sm font-extrabold text-brand-ink">{{ $category->name }}</span>
-                            </span>
-                            <span class="grid min-w-7 shrink-0 place-items-center rounded-full bg-surface-muted px-2 py-0.5 text-[0.7rem] font-extrabold text-slate-600">
-                                {{ $category->products_count }}
-                            </span>
-                        </a>
-                    </li>
-                @endforeach
-            </ul>
-        @endif
+        <ul
+            class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
+            aria-label="تصفية المنتجات حسب التصنيف"
+        >
+            <li class="shrink-0">
+                <a
+                    href="{{ route('home') }}"
+                    @class([
+                        'inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-extrabold transition',
+                        'border-brand-ink bg-brand-ink text-white' => $categorySlug === '',
+                        'border-brand-ink/15 bg-white text-brand-ink hover:border-brand-teal' => $categorySlug !== '',
+                    ])
+                    @if ($categorySlug === '') aria-current="true" @endif
+                >
+                    <x-icon name="sparkles" class="h-4 w-4 text-brand-teal" />
+                    الكل
+                </a>
+            </li>
+
+            @foreach ($categories as $category)
+                @php $isActive = $selectedCategory?->id === $category->id; @endphp
+                <li class="shrink-0">
+                    <a
+                        href="{{ route('home', ['category' => $category->slug]) }}"
+                        @class([
+                            'inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-extrabold transition',
+                            'border-brand-ink bg-brand-ink text-white' => $isActive,
+                            'border-brand-ink/15 bg-white text-brand-ink hover:border-brand-teal' => ! $isActive,
+                        ])
+                        @if ($isActive) aria-current="true" @endif
+                    >
+                        <x-icon name="tags" class="h-4 w-4 text-brand-teal" />
+                        <span class="truncate">{{ $category->name }}</span>
+                        <span @class([
+                            'grid min-w-6 place-items-center rounded-full px-1.5 py-0.5 text-[0.7rem] font-extrabold',
+                            'bg-white/20 text-white' => $isActive,
+                            'bg-surface-muted text-slate-600' => ! $isActive,
+                        ])>{{ $category->products_count }}</span>
+                    </a>
+                </li>
+            @endforeach
+        </ul>
     </section>
 
     <section class="container-page pb-10 sm:pb-14">
         <x-section-heading
-            title="أحدث المنتجات"
-            description="أحدث ما أضفناه إلى الكتالوج."
+            :title="$selectedCategory ? 'منتجات '.$selectedCategory->name : 'أحدث المنتجات'"
+            :description="$selectedCategory ? 'كل المنتجات المتاحة ضمن هذا التصنيف.' : 'أحدث ما أضفناه إلى الكتالوج.'"
             action-label="عرض الكل"
             :action-url="route('products.index')"
         />
 
         @if ($products->isEmpty())
             <x-empty-state
-                title="لا توجد منتجات معروضة حاليًا"
-                description="عد لاحقًا لاكتشاف ما نضيفه من منتجات جديدة."
+                :title="$selectedCategory ? 'لا توجد منتجات في هذا التصنيف' : 'لا توجد منتجات معروضة حاليًا'"
+                :description="$selectedCategory ? 'جرّب تصنيفًا آخر أو اختر «الكل» لعرض جميع المنتجات.' : 'عد لاحقًا لاكتشاف ما نضيفه من منتجات جديدة.'"
+                :action-label="$selectedCategory ? 'عرض كل المنتجات' : null"
+                :action-icon="$selectedCategory ? 'refresh' : null"
+                :action-url="$selectedCategory ? route('home') : null"
             />
         @else
             <div class="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">

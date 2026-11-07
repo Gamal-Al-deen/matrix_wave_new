@@ -1063,4 +1063,284 @@ onReady(() => {
             }
         });
     });
+
+    const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    const draftImageSpinner = '<svg class="h-8 w-8 text-brand-teal" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3"></circle><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.9s" repeatCount="indefinite"></animateTransform></path></svg>';
+
+    /*
+     * Product creation: images upload automatically as soon as they are
+     * selected. The publish button stays disabled until at least one image is
+     * stored successfully, while uploading, and duplicate submissions are
+     * prevented so the exact same product is never created twice.
+     */
+    document.querySelectorAll('[data-product-create]').forEach((form) => {
+        const uploader = form.querySelector('[data-draft-images]');
+        const input = form.querySelector('[data-draft-input]');
+        const list = form.querySelector('[data-draft-list]');
+        const errorBox = form.querySelector('[data-draft-error]');
+        const statusBox = form.querySelector('[data-draft-status]');
+        const publishButton = form.querySelector('[data-product-publish]');
+        const uploadUrl = form.getAttribute('data-upload-url');
+        const deleteUrlTemplate = form.getAttribute('data-delete-url-template') || '';
+        const parsedMax = Number.parseInt(form.getAttribute('data-max-images') || '10', 10);
+        const maxImages = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 10;
+        const labels = {
+            uploading: 'جارٍ رفع الصورة... يرجى الانتظار.',
+            failed: 'تعذر رفع الصورة. حاول مرة أخرى أو اختر صورة أخرى.',
+            removeFailed: 'تعذر حذف الصورة. حاول مرة أخرى.',
+            required: 'يجب رفع صورة واحدة على الأقل قبل نشر المنتج.',
+            limit: `لا يمكن أن يتجاوز عدد صور المنتج ${maxImages} صورة.`,
+        };
+
+        if (! uploader || ! input || ! list || ! uploadUrl) {
+            return;
+        }
+
+        let pending = 0;
+
+        const uploadedCount = () => list.querySelectorAll('[data-draft-item]').length;
+
+        const setError = (message) => {
+            if (! errorBox) {
+                return;
+            }
+
+            const text = typeof message === 'string' ? message.trim() : '';
+            errorBox.textContent = text;
+            errorBox.classList.toggle('hidden', text === '');
+        };
+
+        const updateState = () => {
+            const ready = uploadedCount() > 0;
+
+            if (statusBox) {
+                if (pending > 0) {
+                    statusBox.hidden = false;
+                    statusBox.textContent = labels.uploading;
+                } else if (ready) {
+                    statusBox.hidden = false;
+                    statusBox.textContent = `تم رفع ${uploadedCount()} صورة. يمكنك الآن نشر المنتج.`;
+                } else {
+                    statusBox.hidden = true;
+                    statusBox.textContent = '';
+                }
+            }
+
+            if (publishButton && form.dataset.submitting !== '1') {
+                const disabled = ! ready || pending > 0;
+
+                publishButton.disabled = disabled;
+                publishButton.setAttribute('aria-disabled', String(disabled));
+                publishButton.classList.toggle('opacity-60', disabled);
+                publishButton.classList.toggle('cursor-not-allowed', disabled);
+            }
+        };
+
+        const buildItem = (key, url, name) => {
+            const item = document.createElement('li');
+            item.setAttribute('data-draft-item', '');
+            item.dataset.key = key;
+            item.className = 'relative overflow-hidden rounded-2xl border border-brand-ink/10 bg-white p-2';
+
+            const preview = document.createElement('div');
+            preview.className = 'aspect-[4/3] overflow-hidden rounded-xl bg-surface-muted';
+
+            if (url) {
+                const image = document.createElement('img');
+                image.src = url;
+                image.alt = '';
+                image.loading = 'lazy';
+                image.className = 'h-full w-full object-cover';
+                preview.appendChild(image);
+            }
+
+            const caption = document.createElement('p');
+            caption.className = 'mt-2 truncate text-[0.7rem] text-slate-500';
+            caption.dir = 'ltr';
+            caption.textContent = name || '';
+            caption.title = name || '';
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.setAttribute('data-draft-remove', '');
+            remove.setAttribute('aria-label', 'حذف الصورة');
+            remove.className = 'absolute end-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-brand-ink/80 text-white hover:bg-brand-ink';
+            remove.innerHTML = '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>';
+
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'draft_images[]';
+            hidden.value = key;
+            hidden.setAttribute('data-draft-key-input', '');
+
+            item.append(preview, caption, remove, hidden);
+
+            return item;
+        };
+
+        const removeItem = async (item) => {
+            const key = item.dataset.key;
+
+            if (! key || item.dataset.removing === '1') {
+                return;
+            }
+
+            item.dataset.removing = '1';
+
+            try {
+                const response = await window.fetch(deleteUrlTemplate.replace('__KEY__', encodeURIComponent(key)), {
+                    method: 'DELETE',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrfToken(),
+                    },
+                    credentials: 'same-origin',
+                });
+
+                if (! response.ok) {
+                    throw new Error(labels.removeFailed);
+                }
+
+                item.remove();
+                setError('');
+                updateState();
+            } catch (error) {
+                item.dataset.removing = '0';
+                setError(error?.message || labels.removeFailed);
+            }
+        };
+
+        const uploadFile = async (file) => {
+            const pendingItem = document.createElement('li');
+            pendingItem.setAttribute('data-draft-pending', '');
+            pendingItem.className = 'rounded-2xl border border-dashed border-brand-ink/20 bg-surface-muted p-2';
+
+            const frame = document.createElement('div');
+            frame.className = 'grid aspect-[4/3] place-items-center rounded-xl';
+            frame.innerHTML = draftImageSpinner;
+
+            const caption = document.createElement('p');
+            caption.className = 'mt-2 truncate text-[0.7rem] text-slate-500';
+            caption.dir = 'ltr';
+            caption.textContent = file.name || '';
+
+            pendingItem.append(frame, caption);
+            list.appendChild(pendingItem);
+
+            const body = new window.FormData();
+            body.append('image', file);
+
+            try {
+                const response = await window.fetch(uploadUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrfToken(),
+                    },
+                    body,
+                    credentials: 'same-origin',
+                });
+
+                let data = null;
+
+                try {
+                    data = await response.json();
+                } catch (error) {
+                    data = null;
+                }
+
+                if (! response.ok || ! data || data.success !== true || ! data.key) {
+                    const firstError = data?.errors && typeof data.errors === 'object'
+                        ? Object.values(data.errors)
+                            .flat()
+                            .find((message) => typeof message === 'string' && message.trim() !== '')
+                        : null;
+
+                    throw new Error(firstError || data?.message || labels.failed);
+                }
+
+                list.appendChild(buildItem(data.key, data.url, data.name));
+                setError('');
+            } catch (error) {
+                setError(error?.message || labels.failed);
+            } finally {
+                pendingItem.remove();
+                pending = Math.max(0, pending - 1);
+                updateState();
+            }
+        };
+
+        input.addEventListener('change', () => {
+            const files = Array.from(input.files || []);
+            input.value = '';
+
+            if (files.length === 0) {
+                return;
+            }
+
+            const remaining = maxImages - uploadedCount() - pending;
+
+            if (remaining <= 0) {
+                setError(labels.limit);
+                return;
+            }
+
+            if (files.length > remaining) {
+                setError(labels.limit);
+            } else {
+                setError('');
+            }
+
+            pending += Math.min(files.length, remaining);
+            files.slice(0, remaining).forEach(uploadFile);
+            updateState();
+        });
+
+        list.addEventListener('click', (event) => {
+            const remove = event.target.closest('[data-draft-remove]');
+
+            if (! remove) {
+                return;
+            }
+
+            const item = remove.closest('[data-draft-item]');
+
+            if (item) {
+                removeItem(item);
+            }
+        });
+
+        form.addEventListener('submit', (event) => {
+            if (pending > 0) {
+                event.preventDefault();
+                setError(labels.uploading);
+                return;
+            }
+
+            if (uploadedCount() === 0) {
+                event.preventDefault();
+                setError(labels.required);
+                return;
+            }
+
+            if (form.dataset.submitting === '1') {
+                event.preventDefault();
+                return;
+            }
+
+            form.dataset.submitting = '1';
+
+            if (publishButton) {
+                publishButton.disabled = true;
+                publishButton.setAttribute('aria-disabled', 'true');
+                publishButton.classList.add('opacity-60', 'cursor-not-allowed');
+                publishButton.innerHTML = 'جارٍ نشر المنتج...';
+            }
+        });
+
+        updateState();
+    });
 });
