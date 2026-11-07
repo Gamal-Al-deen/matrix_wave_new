@@ -30,7 +30,7 @@
         @endif
 
         <span @class([
-            'badge absolute start-3 top-3 gap-1.5 border border-white/20 shadow-sm backdrop-blur',
+            'badge absolute start-2 top-2 gap-1 border border-white/20 shadow-sm backdrop-blur sm:start-3 sm:top-3',
             'bg-success/95 text-white' => $available,
             'bg-warning/95 text-white' => ! $available,
         ])>
@@ -39,25 +39,25 @@
         </span>
     </a>
 
-    <div class="flex flex-1 flex-col p-4">
+    <div class="flex flex-1 flex-col p-3 sm:p-4">
         @if ($product->category?->name)
             <p class="flex items-center gap-1 text-xs font-bold text-slate-500">
-                <x-icon name="tags" class="h-3.5 w-3.5 text-brand-teal" />
-                {{ $product->category->name }}
+                <x-icon name="tags" class="h-3.5 w-3.5 shrink-0 text-brand-teal" />
+                <span class="truncate">{{ $product->category->name }}</span>
             </p>
         @endif
 
-        <h3 class="mt-1 line-clamp-2 text-base font-extrabold leading-7 text-brand-ink">
+        <h3 class="mt-1 line-clamp-2 text-sm font-extrabold leading-6 text-brand-ink sm:text-base sm:leading-7">
             <a href="{{ route('products.show', $product->slug) }}" class="tap-link hover:text-brand-ink/80">
                 {{ $product->name }}
             </a>
         </h3>
 
-        <p class="mt-3 text-lg font-extrabold text-brand-ink">
+        <p class="mt-2 text-base font-extrabold text-brand-ink sm:mt-3 sm:text-lg">
             <span dir="ltr">{{ number_format((float) $product->price, 2) }} {{ $currency }}</span>
         </p>
 
-        <div class="mt-auto grid gap-2 pt-4 min-[560px]:grid-cols-2">
+        <div class="mt-auto grid gap-1.5 pt-3 min-[560px]:grid-cols-2 sm:gap-2 sm:pt-4">
             <a href="{{ route('products.show', $product->slug) }}" class="btn btn-outline gap-1.5 px-3 py-2 text-xs">
                 <x-icon name="eye" class="h-4 w-4" />
                 التفاصيل

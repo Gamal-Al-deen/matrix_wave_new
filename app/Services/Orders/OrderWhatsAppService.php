@@ -29,6 +29,27 @@ final class OrderWhatsAppService
         return $this->normalizeNumber($this->settings()?->whatsapp_number) !== null;
     }
 
+    /**
+     * Build a general Click to Chat URL for contacting the store from the site.
+     */
+    public function contactUrl(?string $siteName = null): ?string
+    {
+        $settings = $this->settings();
+        $number = $this->normalizeNumber($settings?->whatsapp_number);
+
+        if ($number === null) {
+            return null;
+        }
+
+        $siteName = is_string($siteName) && trim($siteName) !== ''
+            ? $siteName
+            : (string) config('app.name', 'Matrix Wave');
+
+        $message = 'مرحبًا، أنا زائر من موقع '.$siteName.' وأرغب في التواصل معكم للاستفسار عن منتجاتكم.';
+
+        return 'https://wa.me/'.$number.'?text='.rawurlencode($message);
+    }
+
     public function messageFor(Order $order, ?string $siteName = null): string
     {
         $order->loadMissing(['items', 'wallet']);

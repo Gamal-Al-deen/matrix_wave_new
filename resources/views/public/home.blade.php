@@ -225,15 +225,15 @@
                 description="ستظهر التصنيفات هنا بعد إضافتها من لوحة الإدارة."
             />
         @else
-            <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <ul class="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
                 @foreach ($categories as $category)
-                    <li>
+                    <li class="shrink-0 sm:shrink">
                         <a
                             href="{{ route('products.index', ['category' => $category->slug]) }}"
-                            class="card card-hover flex items-center justify-between gap-3 p-4"
+                            class="card card-hover flex items-center gap-2.5 p-2.5 sm:justify-between sm:gap-3 sm:p-4"
                         >
                             <span class="flex min-w-0 items-center gap-2.5">
-                                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-teal/15 text-brand-ink">
+                                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-teal/15 text-brand-ink sm:h-10 sm:w-10 sm:rounded-xl">
                                     <x-icon name="tags" class="h-5 w-5" />
                                 </span>
                                 <span class="truncate text-sm font-extrabold text-brand-ink">{{ $category->name }}</span>
@@ -262,7 +262,7 @@
                 description="عد لاحقًا لاكتشاف ما نضيفه من منتجات جديدة."
             />
         @else
-            <div class="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
+            <div class="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
                 @foreach ($products as $product)
                     <x-product-card :product="$product" :currency="$currency" />
                 @endforeach
@@ -271,4 +271,17 @@
             <div class="mt-8">{{ $products->links() }}</div>
         @endif
     </section>
+
+    @if (! empty($whatsappUrl))
+        <a
+            href="{{ $whatsappUrl }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="fixed start-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-3.5 py-3 text-sm font-extrabold text-white shadow-lg shadow-black/25 transition hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25D366] md:bottom-6"
+            aria-label="تواصل معنا عبر واتساب"
+        >
+            <x-social-icon platform="whatsapp" class="h-5 w-5" />
+            <span class="hidden sm:inline">تواصل عبر واتساب</span>
+        </a>
+    @endif
 @endsection

@@ -165,6 +165,21 @@ onReady(() => {
         });
     });
 
+    document.querySelectorAll('[data-whatsapp-autopen]').forEach((element) => {
+        const url = element.getAttribute('data-whatsapp-autopen');
+
+        if (!url) {
+            return;
+        }
+
+        try {
+            window.open(url, '_blank', 'noopener');
+        } catch (error) {
+            // The order is already saved and remains available in My Orders,
+            // so the customer can retry from the WhatsApp button.
+        }
+    });
+
     document.querySelectorAll('[data-alert-dismiss]').forEach((button) => {
         button.addEventListener('click', () => {
             button.closest('[role="alert"]')?.remove();
@@ -470,12 +485,12 @@ onReady(() => {
                 badge.classList.toggle('hidden', unread === 0);
             });
 
-            if (typeof data.pending_orders === 'number') {
-                const pending = Math.max(0, data.pending_orders);
+            if (typeof data.new_orders === 'number') {
+                const fresh = Math.max(0, data.new_orders);
 
-                document.querySelectorAll('[data-admin-orders-badge]').forEach((badge) => {
-                    badge.textContent = pending > 99 ? '99+' : String(pending);
-                    badge.classList.toggle('hidden', pending === 0);
+                document.querySelectorAll('[data-admin-new-orders-badge]').forEach((badge) => {
+                    badge.textContent = fresh > 99 ? '99+' : String(fresh);
+                    badge.classList.toggle('hidden', fresh === 0);
                 });
             }
         };
@@ -517,8 +532,10 @@ onReady(() => {
         pollNotifications();
     }
 
-    document.querySelectorAll('[data-browser-notifications-toggle]').forEach((toggle) => {
-        const status = document.getElementById('browser-notification-status');
+    document.querySelectorAll('[data-notification-permission]').forEach((panel) => {
+        const status = panel.querySelector('[data-notification-permission-status]');
+        const requestButton = panel.querySelector('[data-notification-permission-request]');
+        const toggle = panel.querySelector('[data-browser-notifications-toggle]');
 
         const setStatus = (message, tone = 'muted') => {
             if (! status) {
@@ -531,39 +548,53 @@ onReady(() => {
             status.classList.toggle('text-slate-500', tone === 'muted');
         };
 
-        const updateStatus = () => {
+        const applyRequestVisibility = (hidden) => {
+            requestButton?.classList.toggle('hidden', hidden);
+        };
+
+        const render = () => {
             if (! ('Notification' in window)) {
                 setStatus('متصفحك لا يدعم إشعارات المتصفح. ستبقى الإشعارات داخل الموقع متاحة.', 'danger');
+                applyRequestVisibility(true);
                 return;
             }
 
-            if (window.Notification.permission === 'granted') {
+            const permission = window.Notification.permission;
+
+            if (permission === 'granted') {
                 setStatus(
-                    toggle.checked
-                        ? 'إشعارات المتصفح مفعّلة ومسموح بها.'
-                        : 'إشعارات المتصفح متوقفة. الإشعارات داخل الموقع تبقى متاحة.',
-                    toggle.checked ? 'success' : 'muted',
+                    toggle?.checked
+                        ? 'إذن المتصفح ممنوح وإشعارات المتصفح مفعّلة.'
+                        : 'إذن المتصفح ممنوح. فعّل خيار إشعارات المتصفح أعلاه لتظهر الرسائل المنبثقة.',
+                    toggle?.checked ? 'success' : 'muted',
                 );
-            } else if (window.Notification.permission === 'denied') {
-                setStatus('المتصفح رفض إذن الإشعارات. يمكنك تغييره من إعدادات المتصفح. الإشعارات داخل الموقع تبقى متاحة.', 'danger');
+                applyRequestVisibility(true);
+            } else if (permission === 'denied') {
+                setStatus('المتصفح رفض إذن الإشعارات لهذا الموقع. غيّره من إعدادات المتصفح. الإشعارات داخل الموقع تبقى متاحة.', 'danger');
+                applyRequestVisibility(true);
             } else {
-                setStatus('فعّل الخيار ثم اسمح للمتصفح بإظهار الإشعارات عند الطلب.', 'muted');
+                setStatus('لم يُمنح إذن المتصفح بعد. اضغط «تفعيل إشعارات المتصفح» للسماح بإظهار الرسائل المنبثقة.', 'muted');
+                applyRequestVisibility(false);
             }
         };
 
-        toggle.addEventListener('change', async () => {
-            if (toggle.checked && 'Notification' in window && window.Notification.permission === 'default') {
-                try {
-                    await window.Notification.requestPermission();
-                } catch (error) {
-                    // The saved preference still works once permission is granted.
-                }
+        requestButton?.addEventListener('click', async () => {
+            if (! ('Notification' in window)) {
+                return;
             }
 
-            updateStatus();
+            try {
+                await window.Notification.requestPermission();
+            } catch (error) {
+                // render() reflects whatever state the browser ends up in.
+            }
+
+            render();
         });
 
-        updateStatus();
+        toggle?.addEventListener('change', render);
+
+        render();
     });
 
     /*
@@ -773,47 +804,52 @@ onReady(() => {
      * Add-to-cart confirmation: only animate after the server accepted the
      * request, then trust the server-provided cart count.
      */
-    const cartLink = document.querySelector('[data-cart-link]');
-    const cartBadge = cartLink?.querySelector('[data-cart-count]');
+    const cartLinks = Array.from(document.querySelectorAll('[data-cart-link]'));
+    const cartLink = cartLinks[0] || null;
+    const cartBadges = cartLinks
+        .map((link) => link.querySelector('[data-cart-count]'))
+        .filter(Boolean);
     const cartMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-    const cartAriaLabel = (count) => {
-        if (! cartLink) {
+    const cartAriaLabel = (link, count) => {
+        if (! link) {
             return '';
         }
 
-        const singular = cartLink.getAttribute('data-cart-label-singular') || 'سلة المشتريات — {count} منتج';
-        const plural = cartLink.getAttribute('data-cart-label-plural') || 'سلة المشتريات — {count} منتجات';
+        const singular = link.getAttribute('data-cart-label-singular') || 'سلة المشتريات — {count} منتج';
+        const plural = link.getAttribute('data-cart-label-plural') || 'سلة المشتريات — {count} منتجات';
 
         return (count === 1 ? singular : plural).replace('{count}', String(count));
     };
 
+    const visibleCartLink = () => cartLinks.find((link) => link.offsetWidth > 0 && link.offsetHeight > 0) || cartLink;
+
     const applyCartCount = (count) => {
         const safeCount = Math.max(0, Number(count) || 0);
+        const hideBadge = safeCount === 0;
 
-        if (cartBadge) {
-            cartBadge.textContent = String(safeCount);
-        }
+        cartBadges.forEach((badge) => {
+            badge.textContent = String(safeCount);
+            badge.classList.toggle('hidden', hideBadge);
+        });
 
-        cartLink?.setAttribute('aria-label', cartAriaLabel(safeCount));
+        cartLinks.forEach((link) => link.setAttribute('aria-label', cartAriaLabel(link, safeCount)));
     };
 
     const pulseCartIcon = () => {
-        if (! cartLink) {
-            return;
-        }
+        cartLinks.forEach((link) => {
+            link.classList.remove('is-cart-receiving');
+            void link.offsetWidth;
+            link.classList.add('is-cart-receiving');
+            window.setTimeout(() => link.classList.remove('is-cart-receiving'), 900);
+        });
 
-        cartLink.classList.remove('is-cart-receiving');
-        void cartLink.offsetWidth;
-        cartLink.classList.add('is-cart-receiving');
-        window.setTimeout(() => cartLink.classList.remove('is-cart-receiving'), 900);
-
-        if (cartBadge) {
-            cartBadge.classList.remove('is-bumping');
-            void cartBadge.offsetWidth;
-            cartBadge.classList.add('is-bumping');
-            window.setTimeout(() => cartBadge.classList.remove('is-bumping'), 900);
-        }
+        cartBadges.forEach((badge) => {
+            badge.classList.remove('is-bumping');
+            void badge.offsetWidth;
+            badge.classList.add('is-bumping');
+            window.setTimeout(() => badge.classList.remove('is-bumping'), 900);
+        });
     };
 
     const productImageFor = (form) => {
@@ -998,7 +1034,7 @@ onReady(() => {
                     applyCartCount(count);
                 }
 
-                const started = flyProductImage(image, cartLink);
+                const started = flyProductImage(image, visibleCartLink());
 
                 if (started) {
                     window.setTimeout(pulseCartIcon, 620);

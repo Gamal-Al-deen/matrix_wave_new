@@ -65,7 +65,8 @@ class CheckoutController extends Controller
 
         return redirect()
             ->route('orders.show', $order)
-            ->with('order_created', $order->id);
+            ->with('order_created', $order->id)
+            ->with('success', 'تم إرسال طلبك بنجاح عبر الموقع.');
     }
 
     /**

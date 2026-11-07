@@ -38,10 +38,6 @@ class AccountController extends Controller
             $data['phone'] = $data['phone'] ?: null;
         }
 
-        if ($request->has('browser_notifications_enabled')) {
-            $data['browser_notifications_enabled'] = $request->boolean('browser_notifications_enabled');
-        }
-
         $user->update($data);
 
         return redirect()

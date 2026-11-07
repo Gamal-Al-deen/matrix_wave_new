@@ -3,20 +3,21 @@
     $appName = $settings?->displayName() ?? (string) config('app.name', 'Matrix Wave');
     $adminUser = auth()->user();
     $unreadNotifications = $adminUser?->unreadNotifications()->count() ?? 0;
-    $pendingOrders = \App\Models\Order::query()
-        ->where('status', \App\Enums\OrderStatus::Pending->value)
-        ->count();
+    // Single source of truth for the orders counter: the same session-based
+    // indicator that clears when the administrator opens the orders page.
+    $newOrders = app(\App\Services\Orders\AdminOrderIndicator::class)->newCount(request());
     $adminNav = [
-        ['label' => 'لوحة التحكم', 'route' => 'admin.dashboard'],
-        ['label' => 'المنتجات', 'route' => 'admin.products.index'],
-        ['label' => 'التصنيفات', 'route' => 'admin.categories.index'],
-        ['label' => 'الطلبات', 'route' => 'admin.orders.index'],
-        ['label' => 'العملاء', 'route' => 'admin.customers.index'],
-        ['label' => 'المحافظ', 'route' => 'admin.wallets.index'],
-        ['label' => 'البانرات', 'route' => 'admin.banners.index'],
-        ['label' => 'الروابط الاجتماعية', 'route' => 'admin.social-links.index'],
-        ['label' => 'الإعدادات', 'route' => 'admin.settings.edit'],
-        ['label' => 'من نحن', 'route' => 'admin.about.edit'],
+        ['label' => 'لوحة التحكم', 'route' => 'admin.dashboard', 'icon' => 'dashboard'],
+        ['label' => 'المنتجات', 'route' => 'admin.products.index', 'icon' => 'box'],
+        ['label' => 'التصنيفات', 'route' => 'admin.categories.index', 'icon' => 'tags'],
+        ['label' => 'الطلبات', 'route' => 'admin.orders.index', 'icon' => 'orders'],
+        ['label' => 'العملاء', 'route' => 'admin.customers.index', 'icon' => 'users'],
+        ['label' => 'المحافظ', 'route' => 'admin.wallets.index', 'icon' => 'wallet'],
+        ['label' => 'البانرات', 'route' => 'admin.banners.index', 'icon' => 'image'],
+        ['label' => 'الروابط الاجتماعية', 'route' => 'admin.social-links.index', 'icon' => 'share'],
+        ['label' => 'الإعدادات', 'route' => 'admin.settings.edit', 'icon' => 'settings'],
+        ['label' => 'حسابي', 'route' => 'admin.account.edit', 'icon' => 'user'],
+        ['label' => 'من نحن', 'route' => 'admin.about.edit', 'icon' => 'info'],
     ];
 @endphp
 <!DOCTYPE html>
@@ -67,28 +68,34 @@
                     <a
                         href="{{ route($item['route']) }}"
                         @class([
-                            'flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition',
+                            'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold transition',
                             'bg-white/10 text-brand-teal' => $active,
                             'text-white/75 hover:bg-white/10 hover:text-white' => ! $active,
                         ])
                         @if ($active) aria-current="page" @endif
                     >
-                        <span>{{ $item['label'] }}</span>
+                        <x-icon :name="$item['icon']" class="h-5 w-5 shrink-0" />
+
+                        <span class="min-w-0 flex-1 truncate">{{ $item['label'] }}</span>
 
                         @if ($item['route'] === 'admin.orders.index')
                             <span
-                                data-admin-orders-badge
+                                data-admin-new-orders-badge
                                 @class([
                                     'grid h-5 min-w-5 place-items-center rounded-full bg-brand-orange px-1.5 text-[0.65rem] font-extrabold text-brand-ink',
-                                    'hidden' => $pendingOrders === 0,
+                                    'hidden' => $newOrders === 0,
                                 ])
+                                title="طلبات جديدة منذ آخر زيارة لصفحة الطلبات"
                                 aria-hidden="true"
-                            >{{ $pendingOrders > 99 ? '99+' : $pendingOrders }}</span>
+                            >{{ $newOrders > 99 ? '99+' : $newOrders }}</span>
                         @endif
                     </a>
                 @else
-                    <span class="flex cursor-not-allowed items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-bold text-white/45" aria-disabled="true" title="قريبًا">
-                        {{ $item['label'] }}
+                    <span class="flex cursor-not-allowed items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold text-white/45" aria-disabled="true" title="قريبًا">
+                        <x-icon :name="$item['icon']" class="h-5 w-5 shrink-0" />
+
+                        <span class="min-w-0 flex-1 truncate">{{ $item['label'] }}</span>
+
                         <span class="rounded-full bg-white/10 px-1.5 py-0.5 text-[0.6rem] font-bold text-white/60">قريبًا</span>
                     </span>
                 @endif
@@ -129,20 +136,20 @@
                 </div>
 
                 <a
-                    href="{{ route('admin.orders.index', ['status' => 'pending']) }}"
+                    href="{{ route('admin.orders.index') }}"
                     class="relative inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-brand-ink hover:bg-brand-ink/5"
-                    aria-label="الطلبات المعلقة{{ $pendingOrders > 0 ? '، '.$pendingOrders : '' }}"
+                    aria-label="طلبات جديدة{{ $newOrders > 0 ? '، '.$newOrders : '' }}"
                 >
                     <x-icon name="orders" class="h-5 w-5" />
-                    <span class="hidden text-xs font-bold sm:inline">معلقة</span>
+                    <span class="hidden text-xs font-bold sm:inline">جديدة</span>
                     <span
-                        data-admin-orders-badge
+                        data-admin-new-orders-badge
                         @class([
                             'absolute end-1 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-brand-orange px-1 text-[0.65rem] font-extrabold text-brand-ink sm:static sm:end-auto sm:top-auto',
-                            'hidden' => $pendingOrders === 0,
+                            'hidden' => $newOrders === 0,
                         ])
                         aria-hidden="true"
-                    >{{ $pendingOrders > 99 ? '99+' : $pendingOrders }}</span>
+                    >{{ $newOrders > 99 ? '99+' : $newOrders }}</span>
                 </a>
 
                 <a

@@ -44,6 +44,10 @@
             </section>
         @endif
 
+        @if ($justCreated && $whatsappUrl)
+            <span hidden data-whatsapp-autopen="{{ $whatsappUrl }}"></span>
+        @endif
+
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <x-section-heading
                 :title="$pageTitle"
@@ -152,7 +156,7 @@
                     </div>
 
                     <dl class="grid gap-4 p-5 sm:grid-cols-2">
-                        <div>
+                        <div class="hidden sm:block">
                             <dt class="text-xs font-bold text-slate-500">الاسم</dt>
                             <dd class="mt-1 font-bold text-brand-ink">{{ $order->customer_name_snapshot }}</dd>
                         </div>
@@ -161,7 +165,7 @@
                             <dd class="mt-1 font-bold text-brand-ink" dir="ltr">{{ $order->customer_phone_snapshot }}</dd>
                         </div>
                         @if ($order->customer_email_snapshot)
-                            <div class="sm:col-span-2">
+                            <div class="hidden sm:col-span-2 sm:block">
                                 <dt class="text-xs font-bold text-slate-500">البريد الإلكتروني</dt>
                                 <dd class="mt-1 break-all font-bold text-brand-ink" dir="ltr">{{ $order->customer_email_snapshot }}</dd>
                             </div>

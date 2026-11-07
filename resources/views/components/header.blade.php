@@ -44,16 +44,21 @@
 
         <nav class="ms-auto flex items-center gap-0.5 sm:gap-1.5" aria-label="حساب المستخدم والسلة">
             @auth
-                @if (Route::has('account'))
-                    <a href="{{ route('account') }}" class="hidden min-h-11 items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/90 hover:bg-white/10 hover:text-white sm:flex">
+                @if (auth()->user()?->isAdmin())
+                    <a href="{{ route('admin.dashboard') }}" aria-label="الإدارة العامة" class="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-brand-teal hover:bg-white/10 sm:justify-start">
+                        <x-icon name="dashboard" class="h-5 w-5" />
+                        <span class="hidden sm:inline">الإدارة العامة</span>
+                    </a>
+                @elseif (Route::has('account'))
+                    <a href="{{ route('account') }}" aria-label="حسابي" class="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/90 hover:bg-white/10 hover:text-white sm:justify-start">
                         <x-icon name="user" class="h-5 w-5" />
-                        <span>حسابي</span>
+                        <span class="hidden sm:inline">حسابي</span>
                     </a>
                 @else
-                    <span class="hidden items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/45 sm:flex" aria-disabled="true" title="قريبًا">
+                    <span class="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/45 sm:justify-start" aria-disabled="true" title="قريبًا">
                         <x-icon name="user" class="h-5 w-5" />
-                        <span>حسابي</span>
-                        <span class="rounded-full bg-white/10 px-1.5 py-0.5 text-[0.6rem] font-bold text-white/60">قريبًا</span>
+                        <span class="hidden sm:inline">حسابي</span>
+                        <span class="hidden rounded-full bg-white/10 px-1.5 py-0.5 text-[0.6rem] font-bold text-white/60 sm:inline">قريبًا</span>
                     </span>
                 @endif
 
@@ -88,13 +93,6 @@
                             ])
                             aria-hidden="true"
                         >{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
-                    </a>
-                @endif
-
-                @if (auth()->user()?->isAdmin())
-                    <a href="{{ route('admin.dashboard') }}" class="hidden min-h-11 items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-bold text-brand-teal hover:bg-white/10 lg:inline-flex">
-                        <x-icon name="dashboard" class="h-5 w-5" />
-                        الإدارة
                     </a>
                 @endif
 
@@ -136,12 +134,19 @@
                     data-cart-link
                     data-cart-label-singular="سلة المشتريات — {count} منتج"
                     data-cart-label-plural="سلة المشتريات — {count} منتجات"
-                    class="relative inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/90 hover:bg-white/10 hover:text-white"
+                    class="relative hidden min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/90 hover:bg-white/10 hover:text-white md:inline-flex"
                     aria-label="سلة المشتريات — {{ $cartCount }} {{ $cartCount === 1 ? 'منتج' : 'منتجات' }}"
                 >
                     <x-icon name="cart" class="h-5 w-5" />
                     <span class="hidden lg:inline">السلة</span>
-                    <span data-cart-count class="absolute end-0.5 top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-brand-orange px-1 text-[0.7rem] font-extrabold text-brand-ink lg:static lg:end-auto lg:top-auto" aria-hidden="true">{{ $cartCount }}</span>
+                    <span
+                        data-cart-count
+                        @class([
+                            'absolute end-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand-orange px-1 text-[0.6rem] font-extrabold leading-none text-brand-ink lg:static lg:end-auto lg:top-auto',
+                            'hidden' => $cartCount === 0,
+                        ])
+                        aria-hidden="true"
+                    >{{ $cartCount }}</span>
                 </a>
             @else
                 <span class="relative inline-flex min-h-11 cursor-not-allowed items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-bold text-white/45" aria-disabled="true" aria-label="سلة المشتريات" title="السلة قريبًا">
@@ -235,13 +240,6 @@
                 <div class="my-1 h-px bg-white/10" aria-hidden="true"></div>
 
                 @auth
-                    @if (Route::has('account'))
-                        <a href="{{ route('account') }}" class="flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-bold text-white/85 hover:bg-white/10 hover:text-white">
-                            <x-icon name="user" class="h-5 w-5" />
-                            حسابي
-                        </a>
-                    @endif
-
                     @if (Route::has('orders.index'))
                         <a href="{{ route('orders.index') }}" class="flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-bold text-white/85 hover:bg-white/10 hover:text-white">
                             <x-icon name="orders" class="h-5 w-5" />
@@ -267,7 +265,7 @@
                     @if (auth()->user()?->isAdmin())
                         <a href="{{ route('admin.dashboard') }}" class="flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-bold text-brand-teal hover:bg-white/10">
                             <x-icon name="dashboard" class="h-5 w-5" />
-                            لوحة الإدارة
+                            الإدارة العامة
                         </a>
                     @endif
 

@@ -4,6 +4,8 @@
     $description = trim((string) $settings?->description);
     $description = $description !== '' ? $description : 'وجهتك لعرض المنتجات والطلب بسهولة، بتجربة عربية واضحة ومتجاوبة.';
     $phoneHref = preg_replace('/[^\d+]/', '', (string) $settings?->contact_phone);
+    // Fixed developer WhatsApp number (not editable from admin settings).
+    $developerWhatsApp = 'https://wa.me/967770569805?text='.rawurlencode('مرحبًا، أنا زائر من موقع '.$siteName.' وأرغب في التواصل مع مطوّر الموقع.');
     $socialLinks = \App\Models\SocialLink::query()
         ->active()
         ->orderBy('sort_order')
@@ -111,7 +113,17 @@
 
     <div class="border-t border-white/10">
         <div class="container-page flex flex-col gap-2 py-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] text-xs text-white/60 sm:flex-row sm:items-center sm:justify-between md:pb-4">
-            <p class="break-words font-bold text-white/75">تم التطوير بواسطة م/جمال الدين 770569805</p>
+            <p class="break-words font-bold text-white/75">
+                تم التطوير بواسطة م/جمال الدين
+                <a
+                    href="{{ $developerWhatsApp }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="tap-link font-bold text-brand-teal underline decoration-brand-teal/60 decoration-2 underline-offset-4 hover:text-white"
+                    dir="ltr"
+                    aria-label="التواصل مع مطوّر الموقع عبر واتساب — 770569805"
+                >770569805</a>
+            </p>
             <p class="text-white/45">صُنع بعناية لتجربة عربية أصيلة.</p>
         </div>
     </div>

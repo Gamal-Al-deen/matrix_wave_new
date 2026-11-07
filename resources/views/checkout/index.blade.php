@@ -48,18 +48,20 @@
                         </div>
 
                         <div class="grid gap-4 p-5 sm:grid-cols-2">
-                            <x-form-field label="الاسم الكامل" name="name" :required="true">
-                                <input
-                                    id="name"
-                                    name="name"
-                                    type="text"
-                                    value="{{ old('name', $draft['name'] ?? $user->name) }}"
-                                    required
-                                    maxlength="150"
-                                    autocomplete="name"
-                                    class="input @error('name') border-danger @enderror"
-                                >
-                            </x-form-field>
+                            <div class="hidden sm:block">
+                                <x-form-field label="الاسم الكامل" name="name" :required="true">
+                                    <input
+                                        id="name"
+                                        name="name"
+                                        type="text"
+                                        value="{{ old('name', $draft['name'] ?? $user->name) }}"
+                                        required
+                                        maxlength="150"
+                                        autocomplete="name"
+                                        class="input @error('name') border-danger @enderror"
+                                    >
+                                </x-form-field>
+                            </div>
 
                             <x-form-field label="رقم الهاتف" name="phone" :required="true" hint="يمكنك استخدام الأرقام العربية أو الإنجليزية والرمز +.">
                                 <input
@@ -77,7 +79,7 @@
                                 >
                             </x-form-field>
 
-                            <div class="sm:col-span-2">
+                            <div class="hidden sm:col-span-2 sm:block">
                                 <x-form-field label="البريد الإلكتروني (اختياري)" name="email" hint="اتركه فارغًا إذا لم ترغب في إضافته إلى الطلب.">
                                     <input
                                         id="email"
@@ -300,10 +302,6 @@
                         <p class="text-xs leading-6 text-slate-500">
                             لا تُضاف أي رسوم غير مسجلة. الإجمالي المعروض هو مجموع أسعار المنتجات الحالية.
                         </p>
-
-                        <div class="rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs font-bold leading-6 text-warning">
-                            الأسعار المعروضة حالية. راجعها قبل تأكيد الطلب؛ قد تتغير الأسعار قبل إنشاء الطلب.
-                        </div>
 
                         <button type="submit" class="btn btn-primary w-full">
                             تأكيد الطلب

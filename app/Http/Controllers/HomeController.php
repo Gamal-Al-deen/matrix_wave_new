@@ -6,6 +6,7 @@ use App\Models\Banner;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\SiteSetting;
+use App\Services\Orders\OrderWhatsAppService;
 use App\Support\Currency;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -43,6 +44,7 @@ class HomeController extends Controller
             'banners' => $banners,
             'settings' => $settings,
             'currency' => Currency::code(),
+            'whatsappUrl' => app(OrderWhatsAppService::class)->contactUrl($settings?->displayName()),
         ]);
     }
 }

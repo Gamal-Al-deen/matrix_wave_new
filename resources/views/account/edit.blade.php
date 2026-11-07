@@ -95,30 +95,6 @@
                         >{{ old('default_address', $user->default_address) }}</textarea>
                     </x-form-field>
 
-                    <fieldset class="rounded-xl border border-brand-ink/10 bg-surface-muted/60 p-4">
-                        <legend class="px-1 text-sm font-extrabold text-brand-ink">إشعارات الحساب</legend>
-                        <input type="hidden" name="browser_notifications_enabled" value="0">
-                        <label for="browser_notifications_enabled" class="flex cursor-pointer items-start gap-3 rounded-lg p-1">
-                            <input
-                                id="browser_notifications_enabled"
-                                name="browser_notifications_enabled"
-                                type="checkbox"
-                                value="1"
-                                @checked(old('browser_notifications_enabled', $user->browser_notifications_enabled))
-                                data-browser-notifications-toggle
-                                class="mt-0.5 h-5 w-5 shrink-0 rounded border-brand-ink/30 text-brand-teal focus:ring-brand-teal"
-                                aria-describedby="browser-notifications-hint browser-notification-status"
-                            >
-                            <span class="min-w-0">
-                                <span class="block text-sm font-bold text-brand-ink">إشعارات المتصفح المنبثقة</span>
-                                <span id="browser-notifications-hint" class="mt-1 block text-xs leading-6 text-slate-600">
-                                    تظهر رسائل منبثقة من المتصفح عند وصول إشعار جديد، بشرط منح الإذن وفتح الموقع. تبقى الإشعارات داخل الموقع متاحة دائمًا حتى عند تعطيل هذا الخيار.
-                                </span>
-                            </span>
-                        </label>
-                        <p id="browser-notification-status" class="mt-2 text-xs font-bold text-slate-500" role="status" aria-live="polite"></p>
-                    </fieldset>
-
                     <div class="flex flex-wrap items-center gap-3 border-t border-brand-ink/10 pt-5">
                         <button type="submit" class="btn btn-primary">
                             <x-icon name="save" class="h-4 w-4" />

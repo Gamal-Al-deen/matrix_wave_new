@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\AdminLoginRequest;
+use App\Services\Orders\AdminOrderIndicator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,11 +27,14 @@ class AdminSessionController extends Controller
     /**
      * Authenticate an administrator.
      */
-    public function store(AdminLoginRequest $request): RedirectResponse
+    public function store(AdminLoginRequest $request, AdminOrderIndicator $indicator): RedirectResponse
     {
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        // Establish the baseline for the "new orders" indicator at login time.
+        $indicator->markViewed($request);
 
         return redirect()->intended(route('admin.dashboard'));
     }

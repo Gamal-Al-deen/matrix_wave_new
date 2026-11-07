@@ -3,6 +3,7 @@
 use App\Http\Controllers\AboutController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\AboutPageContentController;
+use App\Http\Controllers\Admin\AccountController as AdminAccountController;
 use App\Http\Controllers\Admin\AdminSessionController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\CategoryController;
@@ -57,6 +58,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/account', [AccountController::class, 'update'])->name('account.update');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::patch('/notifications/settings', [NotificationController::class, 'updateSettings'])->name('notifications.settings');
     Route::get('/notifications/poll', [NotificationController::class, 'poll'])->name('notifications.poll');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])
@@ -116,6 +118,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::post('/settings/logo', [SettingsLogoController::class, 'store'])->name('settings.logo.store');
         Route::delete('/settings/logo', [SettingsLogoController::class, 'destroy'])->name('settings.logo.destroy');
+
+        Route::get('/account', [AdminAccountController::class, 'edit'])->name('account.edit');
+        Route::put('/account', [AdminAccountController::class, 'update'])->name('account.update');
 
         Route::get('/about', [AboutPageContentController::class, 'edit'])->name('about.edit');
         Route::put('/about', [AboutPageContentController::class, 'update'])->name('about.update');

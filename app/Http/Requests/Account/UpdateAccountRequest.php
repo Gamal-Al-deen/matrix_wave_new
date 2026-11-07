@@ -27,12 +27,6 @@ class UpdateAccountRequest extends FormRequest
                 ? trim($this->input('default_address'))
                 : null,
         ]);
-
-        if ($this->has('browser_notifications_enabled')) {
-            $this->merge([
-                'browser_notifications_enabled' => $this->boolean('browser_notifications_enabled'),
-            ]);
-        }
     }
 
     /**
@@ -51,7 +45,6 @@ class UpdateAccountRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'phone' => ['nullable', 'string', new YemeniPhone($preservedPhone)],
             'default_address' => ['nullable', 'string', 'max:'.(int) config('checkout.address_max', 1000)],
-            'browser_notifications_enabled' => ['sometimes', 'boolean'],
         ];
     }
 

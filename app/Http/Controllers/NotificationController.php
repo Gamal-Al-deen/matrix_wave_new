@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\OrderStatus;
-use App\Models\Order;
+use App\Services\Orders\AdminOrderIndicator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +29,24 @@ class NotificationController extends Controller
             'notifications' => $notifications,
             'unreadCount' => $user->unreadNotifications()->count(),
         ]);
+    }
+
+    /**
+     * Persist the user's own browser-notification preference.
+     */
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'browser_notifications_enabled' => ['required', 'boolean'],
+        ]);
+
+        $request->user()->update([
+            'browser_notifications_enabled' => (bool) $validated['browser_notifications_enabled'],
+        ]);
+
+        return redirect()
+            ->route('notifications.index')
+            ->with('status', 'تم حفظ إعدادات الإشعارات بنجاح.');
     }
 
     public function read(Request $request, string $notification): RedirectResponse
@@ -80,8 +97,10 @@ class NotificationController extends Controller
 
         return response()->json([
             'unread_count' => $user->unreadNotifications()->count(),
-            'pending_orders' => $user->isAdmin()
-                ? Order::query()->where('status', OrderStatus::Pending->value)->count()
+            // The orders counter is driven solely by the session-based indicator
+            // so it stays a single, non-duplicated source of truth.
+            'new_orders' => $user->isAdmin()
+                ? app(AdminOrderIndicator::class)->newCount($request)
                 : null,
             'notifications' => $notifications,
         ]);

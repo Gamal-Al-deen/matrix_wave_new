@@ -163,7 +163,7 @@ class NewOrderNotificationTest extends TestCase
             ->once();
     }
 
-    public function test_poll_returns_unread_and_pending_counts_for_admins(): void
+    public function test_poll_returns_unread_counts_and_notifications_for_admins(): void
     {
         $admin = User::factory()->admin()->create();
         $customer = User::factory()->create();
@@ -177,7 +177,6 @@ class NewOrderNotificationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('unread_count', 1)
-            ->assertJsonPath('pending_orders', 1)
             ->assertJsonCount(1, 'notifications')
             ->assertJsonPath('notifications.0.title', 'طلب جديد')
             ->assertJsonPath('notifications.0.category', 'order')
@@ -200,7 +199,7 @@ class NewOrderNotificationTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('unread_count', 1)
-            ->assertJsonPath('pending_orders', null)
+            ->assertJsonPath('new_orders', null)
             ->assertJsonCount(1, 'notifications')
             ->assertJsonPath('notifications.0.category', 'account');
 
@@ -223,7 +222,7 @@ class NewOrderNotificationTest extends TestCase
 
         $this->assertSame(1, substr_count($html, 'data-notification-poller'));
         $this->assertStringContainsString('data-notification-badge', $html);
-        $this->assertStringContainsString('data-admin-orders-badge', $html);
+        $this->assertStringContainsString('data-admin-new-orders-badge', $html);
         $this->assertStringContainsString(route('notifications.index'), $html);
     }
 

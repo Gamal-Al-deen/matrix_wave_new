@@ -36,10 +36,14 @@ class OrderController extends Controller
 
         $order->load('items');
 
+        $justCreated = $request->session()->get('order_created') === $order->id;
+        $whatsappUrl = $whatsApp->urlFor($order);
+
         return view('orders.show', [
             'order' => $order,
-            'justCreated' => $request->session()->get('order_created') === $order->id,
-            'whatsappAvailable' => $whatsApp->isConfigured(),
+            'justCreated' => $justCreated,
+            'whatsappAvailable' => $whatsappUrl !== null,
+            'whatsappUrl' => $whatsappUrl,
         ]);
     }
 

@@ -12,9 +12,65 @@
 
         <x-section-heading
             title="الإشعارات"
-            description="تظهر هنا إشعارات حسابك وتحديثات طلباتك. الإشعارات داخل الموقع متاحة دائمًا، ويمكنك التحكم في إشعارات المتصفح من صفحة حسابي."
+            description="تظهر هنا إشعارات حسابك وتحديثات طلباتك. الإشعارات داخل الموقع متاحة دائمًا، ويمكنك إدارة إشعارات المتصفح من هذه الصفحة."
             level="h1"
         />
+
+        @php
+            $notificationUser = auth()->user();
+        @endphp
+
+        <section class="card mb-5 p-4 sm:p-5" aria-labelledby="notification-settings-heading" data-notification-permission>
+            <div class="flex items-start gap-3">
+                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-teal/15 text-brand-ink">
+                    <x-icon name="bell" class="h-5 w-5" />
+                </span>
+                <div class="min-w-0 flex-1">
+                    <h2 id="notification-settings-heading" class="text-base font-extrabold text-brand-ink sm:text-lg">إعدادات الإشعارات</h2>
+                    <p class="mt-1 text-sm leading-7 text-slate-600">
+                        تحكّم في إشعارات المتصفح المنبثقة. إشعارات الموقع داخل هذه الصفحة تبقى متاحة دائمًا حتى عند تعطيل هذا الخيار.
+                    </p>
+
+                    <form method="POST" action="{{ route('notifications.settings') }}" class="mt-4 space-y-4">
+                        @csrf
+                        @method('PATCH')
+
+                        <input type="hidden" name="browser_notifications_enabled" value="0">
+                        <label for="browser_notifications_enabled" class="flex cursor-pointer items-start gap-3 rounded-lg border border-brand-ink/10 bg-surface-muted/60 p-3">
+                            <input
+                                id="browser_notifications_enabled"
+                                name="browser_notifications_enabled"
+                                type="checkbox"
+                                value="1"
+                                @checked(old('browser_notifications_enabled', $notificationUser?->browser_notifications_enabled))
+                                data-browser-notifications-toggle
+                                class="mt-0.5 h-5 w-5 shrink-0 rounded border-brand-ink/30 text-brand-teal focus:ring-brand-teal"
+                                aria-describedby="browser-notifications-hint"
+                            >
+                            <span class="min-w-0">
+                                <span class="block text-sm font-bold text-brand-ink">إشعارات المتصفح المنبثقة</span>
+                                <span id="browser-notifications-hint" class="mt-1 block text-xs leading-6 text-slate-600">
+                                    تظهر رسائل منبثقة من المتصفح عند وصول إشعار جديد، بشرط منح الإذن وفتح الموقع.
+                                </span>
+                            </span>
+                        </label>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="submit" class="btn btn-primary gap-1.5 px-3 py-2 text-xs">
+                                <x-icon name="save" class="h-4 w-4" />
+                                حفظ الإعداد
+                            </button>
+                            <button type="button" class="btn btn-outline gap-1.5 px-3 py-2 text-xs" data-notification-permission-request>
+                                <x-icon name="bell" class="h-4 w-4" />
+                                تفعيل إشعارات المتصفح
+                            </button>
+                        </div>
+                    </form>
+
+                    <p data-notification-permission-status class="mt-3 text-xs font-bold leading-6 text-slate-500" role="status" aria-live="polite"></p>
+                </div>
+            </div>
+        </section>
 
         @if ($unreadCount > 0)
             <div class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-teal/25 bg-brand-teal/10 px-4 py-3">

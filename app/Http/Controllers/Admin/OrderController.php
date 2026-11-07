@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateOrderStatusRequest;
 use App\Http\Requests\Admin\UpdatePaymentStatusRequest;
 use App\Models\Order;
+use App\Services\Orders\AdminOrderIndicator;
 use App\Services\Orders\OrderStatusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,9 +16,12 @@ use Illuminate\View\View;
 
 class OrderController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, AdminOrderIndicator $indicator): View
     {
         $this->authorize('viewAny', Order::class);
+
+        // Opening the orders list clears the "new orders" indicator for this session.
+        $indicator->markViewed($request);
 
         $status = OrderStatus::tryFrom((string) $request->query('status', ''));
         $paymentStatus = PaymentStatus::tryFrom((string) $request->query('payment_status', ''));
