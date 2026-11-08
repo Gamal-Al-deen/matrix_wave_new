@@ -25,9 +25,4 @@ class ProductPolicy
     {
         return $user->isAdmin();
     }
-
-    public function restore(User $user): bool
-    {
-        return $user->isAdmin();
-    }
 }

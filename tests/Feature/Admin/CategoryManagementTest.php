@@ -142,6 +142,20 @@ class CategoryManagementTest extends TestCase
         $this->assertDatabaseHas('categories', ['id' => $category->id]);
     }
 
+    public function test_categories_with_legacy_soft_deleted_products_cannot_be_deleted(): void
+    {
+        $category = $this->makeCategory();
+        $product = $this->makeProduct($category);
+        $product->delete();
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->delete(route('admin.categories.destroy', $category))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('categories', ['id' => $category->id]);
+    }
+
     public function test_empty_categories_can_be_deleted(): void
     {
         $category = $this->makeCategory();

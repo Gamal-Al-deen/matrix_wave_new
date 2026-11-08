@@ -101,8 +101,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('/categories/{category}/status', [CategoryController::class, 'toggleStatus'])
             ->name('categories.status');
 
-        Route::patch('/products/{product}/restore', [ProductController::class, 'restore'])
-            ->name('products.restore');
         Route::resource('products', ProductController::class)->except(['show']);
 
         Route::post('/products/{product}/images', [ProductImageController::class, 'store'])

@@ -22,48 +22,20 @@
         />
 
         <div class="flex flex-wrap items-center gap-2">
-            <a
-                href="{{ route('admin.products.index') }}"
-                @class([
-                    'badge min-h-11 gap-1.5 border px-3',
-                    'border-brand-ink bg-brand-ink text-white' => ! $showTrashed,
-                    'border-brand-ink/15 bg-white text-slate-600 hover:border-brand-teal' => $showTrashed,
-                ])
-            >
+            <span class="badge min-h-11 gap-1.5 border border-brand-ink bg-brand-ink px-3 text-white">
                 <x-icon name="check" class="h-4 w-4" />
-                الحالية
-            </a>
-            <a
-                href="{{ route('admin.products.index', ['trashed' => 1]) }}"
-                @class([
-                    'badge min-h-11 gap-1.5 border px-3',
-                    'border-brand-ink bg-brand-ink text-white' => $showTrashed,
-                    'border-brand-ink/15 bg-white text-slate-600 hover:border-brand-teal' => ! $showTrashed,
-                ])
-            >
-                <x-icon name="trash" class="h-4 w-4" />
-                المحذوفة
-            </a>
+                المنتجات الحالية
+            </span>
         </div>
 
         @if ($products->isEmpty())
-            @if ($showTrashed)
-                <x-empty-state
-                    title="لا توجد منتجات محذوفة"
-                    description="المنتجات المحذوفة تظهر هنا ويمكن استعادتها."
-                    action-label="العودة إلى المنتجات الحالية"
-                    action-icon="arrow-right"
-                    :action-url="route('admin.products.index')"
-                />
-            @else
-                <x-empty-state
-                    title="لا توجد منتجات بعد"
-                    description="ابدأ بإضافة منتج وربطه بتصنيف، ثم أضف صوره."
-                    action-label="إضافة منتج"
-                    action-icon="plus"
-                    :action-url="route('admin.products.create')"
-                />
-            @endif
+            <x-empty-state
+                title="لا توجد منتجات بعد"
+                description="ابدأ بإضافة منتج وربطه بتصنيف، ثم أضف صوره."
+                action-label="إضافة منتج"
+                action-icon="plus"
+                :action-url="route('admin.products.create')"
+            />
         @else
             <div class="card overflow-hidden">
                 <div class="overflow-x-auto">
@@ -116,30 +88,19 @@
                                     </td>
                                     <td class="px-4 py-3 text-slate-600" data-label="الصور">{{ $product->images_count }}</td>
                                     <td class="px-4 py-3" data-label="إجراءات">
-                                        @if ($showTrashed)
-                                            <form method="POST" action="{{ route('admin.products.restore', $product->id) }}">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="table-action gap-1.5 text-info hover:bg-info/5 hover:underline">
-                                                    <x-icon name="refresh" class="h-4 w-4" />
-                                                    استعادة
-                                                </button>
-                                            </form>
-                                        @else
-                                            <div class="flex flex-wrap items-center gap-1">
-                                                <a href="{{ route('admin.products.edit', $product) }}" class="table-action gap-1.5 text-brand-ink hover:underline">
-                                                    <x-icon name="pencil" class="h-4 w-4" />
-                                                    تعديل
-                                                </a>
+                                        <div class="flex flex-wrap items-center gap-1">
+                                            <a href="{{ route('admin.products.edit', $product) }}" class="table-action gap-1.5 text-brand-ink hover:underline">
+                                                <x-icon name="pencil" class="h-4 w-4" />
+                                                تعديل
+                                            </a>
 
-                                                <x-confirm-form
-                                                    :action="route('admin.products.destroy', $product)"
-                                                    title="حذف المنتج"
-                                                    message="سيُخفى المنتج من المتجر مع الحفاظ على بياناته في الطلبات السابقة، ويمكن استعادته لاحقًا."
-                                                    label="حذف"
-                                                />
-                                            </div>
-                                        @endif
+                                            <x-confirm-form
+                                                :action="route('admin.products.destroy', $product)"
+                                                title="حذف المنتج"
+                                                message="سيُحذف المنتج نهائيًا مع الحفاظ على بيانات الطلبات السابقة. لا يمكن التراجع عن هذا الإجراء."
+                                                label="حذف"
+                                            />
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach

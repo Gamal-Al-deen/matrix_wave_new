@@ -3,10 +3,12 @@
 namespace Tests\Feature\Admin;
 
 use App\Http\Controllers\Admin\ProductImageController;
+use App\Models\Banner;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\User;
+use App\Services\Storage\ImageStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -115,6 +117,51 @@ class ProductImageManagementTest extends TestCase
         Storage::disk('supabase')->assertMissing($image->storage_path);
     }
 
+    public function test_image_deletion_preserves_an_object_shared_with_a_banner(): void
+    {
+        $product = $this->makeProduct();
+        $image = $this->attachImage($product);
+
+        $banner = Banner::query()->create([
+            'title' => 'بانر مشترك',
+            'image_storage_path' => $image->storage_path,
+            'image_public_url' => $image->public_url,
+            'alt_text' => 'صورة مشتركة',
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->delete(route('admin.products.images.destroy', [$product, $image]))
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseMissing('product_images', ['id' => $image->id]);
+        $this->assertDatabaseHas('banners', ['id' => $banner->id]);
+        Storage::disk('supabase')->assertExists($image->storage_path);
+    }
+
+    public function test_image_deletion_removes_the_row_even_when_storage_deletion_fails(): void
+    {
+        $product = $this->makeProduct();
+        $image = $this->attachImage($product);
+
+        $this->app->instance(ImageStorageService::class, new class extends ImageStorageService
+        {
+            public function delete(?string $path): bool
+            {
+                return false;
+            }
+        });
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->delete(route('admin.products.images.destroy', [$product, $image]))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseMissing('product_images', ['id' => $image->id]);
+    }
+
     public function test_replacing_an_image_writes_the_new_file_before_removing_the_old_one(): void
     {
         $product = $this->makeProduct();
@@ -209,6 +256,37 @@ class ProductImageManagementTest extends TestCase
 
         $this->assertArrayNotHasKey($key, session(ProductImageController::DRAFT_SESSION_KEY, []));
         Storage::disk('supabase')->assertMissing($path);
+    }
+
+    public function test_draft_deletion_keeps_the_session_entry_when_storage_deletion_fails(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $key = 'draft-key-failure';
+
+        $this->app->instance(ImageStorageService::class, new class extends ImageStorageService
+        {
+            public function delete(?string $path): bool
+            {
+                return false;
+            }
+        });
+
+        $this->withSession([
+            ProductImageController::DRAFT_SESSION_KEY => [
+                $key => [
+                    'storage_path' => 'products/draft/unreachable.png',
+                    'public_url' => 'https://example.test/products/draft/unreachable.png',
+                    'original_name' => 'unreachable.png',
+                    'mime_type' => 'image/png',
+                    'size_bytes' => 1024,
+                ],
+            ],
+        ])->actingAs($admin)
+            ->deleteJson(route('admin.products.images.draft.destroy', $key))
+            ->assertStatus(500)
+            ->assertJson(['success' => false]);
+
+        $this->assertArrayHasKey($key, session(ProductImageController::DRAFT_SESSION_KEY, []));
     }
 
     public function test_draft_uploads_reject_non_image_files(): void

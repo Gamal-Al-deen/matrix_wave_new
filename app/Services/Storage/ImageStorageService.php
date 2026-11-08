@@ -57,20 +57,6 @@ class ImageStorageService
     }
 
     /**
-     * Store a new image and remove the previous one only after success.
-     */
-    public function replace(UploadedFile $file, string $folder, ?string $previousPath = null): StoredImage
-    {
-        $stored = $this->store($file, $folder);
-
-        if ($previousPath !== null && $previousPath !== $stored->path) {
-            $this->delete($previousPath);
-        }
-
-        return $stored;
-    }
-
-    /**
      * Delete an object. Failures are logged without exposing credentials.
      */
     public function delete(?string $path): bool

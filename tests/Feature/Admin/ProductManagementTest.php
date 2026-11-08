@@ -34,12 +34,10 @@ class ProductManagementTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_administrators_can_view_products_including_soft_deleted_ones(): void
+    public function test_administrators_can_view_current_products(): void
     {
         $category = $this->makeCategory();
-        $product = $this->makeProduct($category, ['name' => 'منتج ظاهر']);
-        $deleted = $this->makeProduct($category, ['slug' => 'deleted-product', 'name' => 'منتج محذوف']);
-        $deleted->delete();
+        $this->makeProduct($category, ['name' => 'منتج ظاهر']);
 
         $admin = User::factory()->admin()->create();
 
@@ -47,14 +45,7 @@ class ProductManagementTest extends TestCase
             ->get(route('admin.products.index'))
             ->assertOk()
             ->assertSee('منتج ظاهر')
-            ->assertDontSee('منتج محذوف');
-
-        $this->actingAs($admin)
-            ->get(route('admin.products.index', ['trashed' => 1]))
-            ->assertOk()
-            ->assertSee('منتج محذوف');
-
-        $this->assertNotSoftDeleted($product);
+            ->assertDontSee('المحذوفة');
     }
 
     public function test_administrators_can_open_the_product_forms(): void
@@ -198,27 +189,11 @@ class ProductManagementTest extends TestCase
         $this->assertSame('out_of_stock', $product->status->value);
     }
 
-    public function test_deleting_a_product_is_soft_and_can_be_restored(): void
+    public function test_legacy_soft_deleted_products_stay_hidden_from_normal_queries(): void
     {
-        $product = $this->makeProduct($this->makeCategory());
-
-        $admin = User::factory()->admin()->create();
-
-        $this->actingAs($admin)
-            ->delete(route('admin.products.destroy', $product))
-            ->assertRedirect(route('admin.products.index'));
-
-        $this->assertSoftDeleted('products', ['id' => $product->id]);
-
-        $this->actingAs($admin)
-            ->patch(route('admin.products.restore', $product->id))
-            ->assertRedirect(route('admin.products.index'));
-
-        $this->assertNotSoftDeleted('products', ['id' => $product->id]);
-    }
-
-    public function test_soft_deleted_products_are_excluded_from_normal_queries(): void
-    {
+        // SoftDeletes is retained only to keep rows deleted before the
+        // permanent-deletion policy hidden until an approved production
+        // cleanup is run. The admin delete action uses forceDelete().
         $product = $this->makeProduct($this->makeCategory());
         $product->delete();
 

@@ -6,31 +6,29 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProductRequest;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductImage;
+use App\Services\Products\ProductDeletionService;
 use App\Services\Storage\ImageStorageService;
 use App\Support\UniqueSlug;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class ProductController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): View
     {
         $this->authorize('viewAny', Product::class);
-
-        $showTrashed = $request->boolean('trashed');
 
         $products = Product::query()
             ->with(['category', 'images'])
             ->withCount('images')
-            ->when($showTrashed, fn ($query) => $query->onlyTrashed())
             ->latest()
-            ->paginate(15)
-            ->withQueryString();
+            ->paginate(15);
 
-        return view('admin.products.index', compact('products', 'showTrashed'));
+        return view('admin.products.index', compact('products'));
     }
 
     public function create(): View
@@ -91,13 +89,16 @@ class ProductController extends Controller
 
                 return $product;
             });
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             // The product was not created, so the freshly stored files are not
             // referenced anywhere. Remove them instead of leaving orphans, but
-            // keep the usable drafts so the administrator can retry.
+            // keep the usable drafts so the administrator can retry. When the
+            // database state cannot be verified, preserve the file and draft.
             foreach ($selectedDrafts as $key => $draft) {
-                $storage->delete($draft['storage_path'] ?? null);
-                unset($sessionDrafts[$key]);
+                if ($this->draftIsUnreferenced($draft['storage_path'] ?? null)) {
+                    $storage->delete($draft['storage_path'] ?? null);
+                    unset($sessionDrafts[$key]);
+                }
             }
 
             $request->session()->put(ProductImageController::DRAFT_SESSION_KEY, $sessionDrafts);
@@ -108,7 +109,7 @@ class ProductController extends Controller
         // Any draft the administrator uploaded but did not publish with the
         // product is no longer needed: remove its file and clear the session.
         foreach ($sessionDrafts as $key => $draft) {
-            if (! isset($selectedDrafts[$key])) {
+            if (! isset($selectedDrafts[$key]) && $this->draftIsUnreferenced($draft['storage_path'] ?? null)) {
                 $storage->delete($draft['storage_path'] ?? null);
             }
         }
@@ -144,27 +145,43 @@ class ProductController extends Controller
             ->with('status', 'تم تحديث المنتج بنجاح.');
     }
 
-    public function destroy(Product $product): RedirectResponse
+    public function destroy(Product $product, ProductDeletionService $deletion): RedirectResponse
     {
         $this->authorize('delete', $product);
 
-        $product->delete();
+        $failedStorageDeletions = $deletion->delete($product);
 
-        return redirect()
-            ->route('admin.products.index')
-            ->with('status', 'تم حذف المنتج (حذف آمن مع الحفاظ على سجلات الطلبات).');
+        $response = redirect()->route('admin.products.index');
+
+        if ($failedStorageDeletions > 0) {
+            return $response->with(
+                'error',
+                'تم حذف المنتج نهائيًا، لكن تعذر حذف بعض ملفات الصور من التخزين. راجع سجلات النظام.',
+            );
+        }
+
+        return $response->with(
+            'status',
+            'تم حذف المنتج نهائيًا مع الحفاظ على سجلات الطلبات السابقة.',
+        );
     }
 
-    public function restore(string $product): RedirectResponse
+    /**
+     * Only remove an unpublished draft object when the database confirms that
+     * no product image row references it. Unknown state preserves the object.
+     */
+    private function draftIsUnreferenced(mixed $path): bool
     {
-        $restored = Product::withTrashed()->findOrFail($product);
+        if (! is_string($path) || trim($path) === '') {
+            return true;
+        }
 
-        $this->authorize('restore', $restored);
-
-        $restored->restore();
-
-        return redirect()
-            ->route('admin.products.index')
-            ->with('status', 'تمت استعادة المنتج.');
+        try {
+            return ! ProductImage::query()
+                ->where('storage_path', $path)
+                ->exists();
+        } catch (Throwable) {
+            return false;
+        }
     }
 }

@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Listeners\PruneNotifications;
 use App\Services\Notifications\LoginNotifier;
 use App\Services\Notifications\RegistrationNotifier;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -26,5 +28,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Event::listen(Registered::class, RegistrationNotifier::class);
         Event::listen(Login::class, LoginNotifier::class);
+        Event::listen(NotificationSent::class, PruneNotifications::class);
     }
 }

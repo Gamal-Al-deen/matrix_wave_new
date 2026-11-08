@@ -62,16 +62,6 @@ class ImageStorageServiceTest extends TestCase
         $this->assertStringNotContainsString('.php', $stored->path);
     }
 
-    public function test_replace_removes_the_previous_object_only_after_storing_the_new_one(): void
-    {
-        $first = $this->service->store($this->pngUpload(), 'products/abc');
-        $second = $this->service->replace($this->pngUpload('second.png'), 'products/abc', $first->path);
-
-        $this->assertNotSame($first->path, $second->path);
-        Storage::disk('supabase')->assertMissing($first->path);
-        Storage::disk('supabase')->assertExists($second->path);
-    }
-
     public function test_delete_removes_the_object(): void
     {
         $stored = $this->service->store($this->pngUpload(), 'products/abc');

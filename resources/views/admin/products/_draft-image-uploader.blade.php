@@ -10,7 +10,7 @@
             <span class="text-danger" aria-hidden="true">*</span>
         </span>
         <p class="mt-1 text-xs leading-6 text-slate-500">
-            JPG أو PNG أو WebP بحد أقصى 5 ميجابايت للصورة. يبدأ الرفع تلقائيًا بمجرد اختيار الصورة.
+            JPG أو PNG أو WebP بحد أقصى 5 ميجابايت للصورة. يتم تحويل الصورة تلقائيًا إلى WebP بحد أقصى 1200 بكسل للضلع الأطول، ويبدأ الرفع بمجرد اختيارها.
         </p>
     </div>
 

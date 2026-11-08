@@ -23,12 +23,13 @@
             action="{{ route('admin.products.images.store', $product) }}"
             enctype="multipart/form-data"
             class="mt-5 rounded-2xl border border-dashed border-brand-ink/20 bg-surface-muted p-4"
+            data-product-image-optimize
         >
             @csrf
 
             <label for="images" class="block text-sm font-bold text-ink">إضافة صور</label>
             <p class="mt-1 text-xs leading-6 text-slate-500">
-                JPG أو PNG أو WebP، بحد أقصى 5 ميجابايت للصورة. يمكن اختيار عدة صور معًا.
+                JPG أو PNG أو WebP، بحد أقصى 5 ميجابايت للصورة. سيتم تحويلها تلقائيًا إلى WebP بحد أقصى 1200 بكسل للضلع الأطول قبل الرفع. يمكن اختيار عدة صور معًا.
             </p>
 
             <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -43,6 +44,8 @@
                 >
                 <button type="submit" class="btn btn-secondary shrink-0">رفع الصور</button>
             </div>
+
+            <p class="mt-2 hidden text-xs font-bold text-danger" data-product-image-error role="alert"></p>
 
             @error('images')
                 <p class="mt-2 text-xs font-bold text-danger">{{ $message }}</p>
@@ -67,6 +70,7 @@
                     <div class="aspect-[4/3] overflow-hidden rounded-xl bg-surface-muted">
                         @if ($image->public_url)
                             <img
+                                id="product-image-preview-{{ $image->id }}"
                                 src="{{ $image->public_url }}"
                                 alt="{{ $image->alt_text ?: $product->name }}"
                                 class="h-full w-full object-cover"
@@ -122,20 +126,26 @@
                         method="POST"
                         action="{{ route('admin.products.images.replace', [$product, $image]) }}"
                         enctype="multipart/form-data"
-                        class="mt-3 flex items-center gap-2"
+                        class="mt-3"
+                        data-product-image-optimize
+                        data-product-image-preview="#product-image-preview-{{ $image->id }}"
                     >
                         @csrf
 
-                        <label for="replace-image-{{ $image->id }}" class="sr-only">استبدال الصورة</label>
-                        <input
-                            id="replace-image-{{ $image->id }}"
-                            name="image"
-                            type="file"
-                            required
-                            accept="image/jpeg,image/png,image/webp"
-                            class="block w-full text-xs text-slate-600 file:me-2 file:rounded-md file:border-0 file:bg-surface-muted file:px-2 file:py-1.5 file:text-xs file:font-bold file:text-brand-ink hover:file:bg-brand-ink/10"
-                        >
-                        <button type="submit" class="btn btn-outline shrink-0 px-2.5 py-1.5 text-xs">استبدال</button>
+                        <div class="flex items-center gap-2">
+                            <label for="replace-image-{{ $image->id }}" class="sr-only">استبدال الصورة</label>
+                            <input
+                                id="replace-image-{{ $image->id }}"
+                                name="image"
+                                type="file"
+                                required
+                                accept="image/jpeg,image/png,image/webp"
+                                class="block w-full text-xs text-slate-600 file:me-2 file:rounded-md file:border-0 file:bg-surface-muted file:px-2 file:py-1.5 file:text-xs file:font-bold file:text-brand-ink hover:file:bg-brand-ink/10"
+                            >
+                            <button type="submit" class="btn btn-outline shrink-0 px-2.5 py-1.5 text-xs">استبدال</button>
+                        </div>
+
+                        <p class="mt-2 hidden text-xs font-bold text-danger" data-product-image-error role="alert"></p>
                     </form>
                 </li>
             @endforeach

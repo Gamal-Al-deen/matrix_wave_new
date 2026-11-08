@@ -83,10 +83,10 @@ class CategoryController extends Controller
     {
         $this->authorize('delete', $category);
 
-        if ($category->products()->exists()) {
+        if ($category->products()->withTrashed()->exists()) {
             return back()->with(
                 'error',
-                'لا يمكن حذف تصنيف مرتبط بمنتجات. عطّل التصنيف أو انقل المنتجات إلى تصنيف آخر أولًا.',
+                'لا يمكن حذف تصنيف مرتبط بمنتجات، بما في ذلك منتجات محذوفة قديمة. عطّل التصنيف أو انقل المنتجات إلى تصنيف آخر أولًا.',
             );
         }
 

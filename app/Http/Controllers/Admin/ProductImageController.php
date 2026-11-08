@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\ProductImageReplaceRequest;
 use App\Http\Requests\Admin\ProductImagesRequest;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Services\Products\ProductImageStorageCleaner;
 use App\Services\Storage\ImageStorageService;
 use App\Support\ImageRules;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class ProductImageController extends Controller
 {
@@ -71,11 +73,23 @@ class ProductImageController extends Controller
 
         $drafts = (array) $request->session()->get(self::DRAFT_SESSION_KEY, []);
 
-        if (isset($drafts[$key])) {
-            $storage->delete($drafts[$key]['storage_path'] ?? null);
-            unset($drafts[$key]);
-            $request->session()->put(self::DRAFT_SESSION_KEY, $drafts);
+        if (! isset($drafts[$key])) {
+            return response()->json(['success' => true]);
         }
+
+        $path = $drafts[$key]['storage_path'] ?? null;
+
+        // Keep the draft tracked when its object cannot be removed, so the
+        // administrator can retry instead of leaving an untracked orphan file.
+        if (! $storage->delete($path)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'تعذر حذف ملف الصورة من التخزين. حاول مرة أخرى.',
+            ], 500);
+        }
+
+        unset($drafts[$key]);
+        $request->session()->put(self::DRAFT_SESSION_KEY, $drafts);
 
         return response()->json(['success' => true]);
     }
@@ -108,11 +122,22 @@ class ProductImageController extends Controller
 
             $stored = $storage->store($file, $folder);
 
-            $product->images()->create([
-                ...$stored->toArray(),
-                'sort_order' => ++$sortOrder,
-                'alt_text' => $product->name,
-            ]);
+            try {
+                $product->images()->create([
+                    ...$stored->toArray(),
+                    'sort_order' => ++$sortOrder,
+                    'alt_text' => $product->name,
+                ]);
+            } catch (Throwable $exception) {
+                // Remove the new object only when the database confirms that no
+                // row references it. If the check fails, preserve the object
+                // because the database state cannot be determined.
+                if (! $this->storedPathIsReferenced($stored->path)) {
+                    $storage->delete($stored->path);
+                }
+
+                throw $exception;
+            }
 
             $storedCount++;
         }
@@ -125,22 +150,54 @@ class ProductImageController extends Controller
         Product $product,
         ProductImage $image,
         ImageStorageService $storage,
+        ProductImageStorageCleaner $cleaner,
     ): RedirectResponse {
         $this->authorize('update', $product);
         $this->ensureImageBelongsToProduct($product, $image);
 
         $file = $request->file('image');
+        $previousPath = $image->storage_path;
 
-        $stored = $storage->replace(
+        $stored = $storage->store(
             $file,
             $storage->folder('product', $product->id),
-            $image->storage_path,
         );
 
-        $image->update([
-            ...$stored->toArray(),
-            'alt_text' => $image->alt_text ?: $product->name,
-        ]);
+        try {
+            $image->update([
+                ...$stored->toArray(),
+                'alt_text' => $image->alt_text ?: $product->name,
+            ]);
+        } catch (Throwable $exception) {
+            // Only delete the new object when the database is known not to
+            // reference it. If the lookup cannot be completed, preserve the
+            // new object rather than risk deleting a referenced file.
+            $currentPath = null;
+            $lookupSucceeded = false;
+
+            try {
+                $currentPath = ProductImage::query()
+                    ->whereKey($image->getKey())
+                    ->value('storage_path');
+                $lookupSucceeded = true;
+            } catch (Throwable) {
+                // Preserve the new object; the original failure is rethrown.
+            }
+
+            if ($lookupSucceeded) {
+                if ($currentPath === $stored->path) {
+                    $cleaner->deleteIfUnreferenced($previousPath);
+                } else {
+                    $storage->delete($stored->path);
+                }
+            }
+
+            throw $exception;
+        }
+
+        if ($previousPath !== null && $previousPath !== $stored->path) {
+            $cleaner->deleteIfUnreferenced($previousPath);
+        }
 
         return back()->with('status', 'تم استبدال الصورة بنجاح.');
     }
@@ -148,19 +205,23 @@ class ProductImageController extends Controller
     public function destroy(
         Product $product,
         ProductImage $image,
-        ImageStorageService $storage,
+        ProductImageStorageCleaner $cleaner,
     ): RedirectResponse {
         $this->authorize('update', $product);
         $this->ensureImageBelongsToProduct($product, $image);
 
-        if (! $storage->delete($image->storage_path)) {
+        $path = $image->storage_path;
+
+        // Delete the target row first so it cannot outlive its file. The
+        // cleaner then removes the object only when nothing else references it.
+        $image->delete();
+
+        if (! $cleaner->deleteIfUnreferenced($path)) {
             return back()->with(
                 'error',
-                'تعذر حذف ملف الصورة من التخزين، لذلك أُبقيت بياناتها. حاول مرة أخرى.',
+                'تم حذف بيانات الصورة نهائيًا، لكن تعذر حذف ملفها من التخزين. راجع سجلات النظام.',
             );
         }
-
-        $image->delete();
 
         return back()->with('status', 'تم حذف الصورة.');
     }
@@ -202,5 +263,20 @@ class ProductImageController extends Controller
     private function ensureImageBelongsToProduct(Product $product, ProductImage $image): void
     {
         abort_unless($image->product_id === $product->id, 404);
+    }
+
+    /**
+     * Treat an unreadable database state as "referenced" so the caller
+     * preserves a newly uploaded object rather than risking data loss.
+     */
+    private function storedPathIsReferenced(string $path): bool
+    {
+        try {
+            return ProductImage::query()
+                ->where('storage_path', $path)
+                ->exists();
+        } catch (Throwable) {
+            return true;
+        }
     }
 }

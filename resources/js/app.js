@@ -1,3 +1,8 @@
+import {
+    ProductImageOptimizationError,
+    optimizeProductImage,
+} from './product-image-optimizer';
+
 const onReady = (callback) => {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', callback, { once: true });
@@ -1066,6 +1071,24 @@ onReady(() => {
 
     const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
+    const imageErrorMessage = (error) => (
+        error instanceof ProductImageOptimizationError
+            ? error.message
+            : 'تعذر معالجة الصورة. لم يتم رفع الصورة الأصلية. حاول مرة أخرى.'
+    );
+
+    const replaceFileSelection = (input, files) => {
+        if (typeof window.DataTransfer !== 'function') {
+            return false;
+        }
+
+        const transfer = new window.DataTransfer();
+        files.forEach((file) => transfer.items.add(file));
+        input.files = transfer.files;
+
+        return true;
+    };
+
     const draftImageSpinner = '<svg class="h-8 w-8 text-brand-teal" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3"></circle><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.9s" repeatCount="indefinite"></animateTransform></path></svg>';
 
     /*
@@ -1229,10 +1252,14 @@ onReady(() => {
             pendingItem.append(frame, caption);
             list.appendChild(pendingItem);
 
-            const body = new window.FormData();
-            body.append('image', file);
-
             try {
+                const optimized = await optimizeProductImage(file);
+
+                caption.textContent = optimized.name;
+
+                const body = new window.FormData();
+                body.append('image', optimized);
+
                 const response = await window.fetch(uploadUrl, {
                     method: 'POST',
                     headers: {
@@ -1342,5 +1369,114 @@ onReady(() => {
         });
 
         updateState();
+    });
+
+    /*
+     * Product edit: both the multi-image upload and per-image replacement
+     * forms send the optimized WebP file. The original selection is never
+     * submitted when decoding or encoding fails.
+     */
+    document.querySelectorAll('[data-product-image-optimize]').forEach((form) => {
+        const input = form.querySelector('input[type="file"]');
+
+        if (! input) {
+            return;
+        }
+
+        const errorBox = form.querySelector('[data-product-image-error]');
+        const previewSelector = form.getAttribute('data-product-image-preview');
+        const submitButtons = Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+
+        const setError = (message) => {
+            const text = typeof message === 'string' ? message.trim() : '';
+
+            if (errorBox) {
+                errorBox.textContent = text;
+                errorBox.classList.toggle('hidden', text === '');
+            } else if (text !== '') {
+                showToast('error', text, { duration: 6000 });
+            }
+        };
+
+        const setBusy = (busy) => {
+            form.dataset.imageOptimizing = busy ? '1' : '0';
+
+            submitButtons.forEach((button) => {
+                button.disabled = busy;
+                button.setAttribute('aria-disabled', String(busy));
+                button.classList.toggle('opacity-60', busy);
+                button.classList.toggle('cursor-not-allowed', busy);
+            });
+        };
+
+        // Native validation may reject the form after we re-submit it.
+        form.addEventListener('invalid', () => {
+            delete form.dataset.imageOptimized;
+            setBusy(false);
+        }, true);
+
+        form.addEventListener('submit', async (event) => {
+            if (form.dataset.imageOptimized === '1') {
+                delete form.dataset.imageOptimized;
+
+                return;
+            }
+
+            if (form.dataset.imageOptimizing === '1') {
+                event.preventDefault();
+
+                return;
+            }
+
+            const files = Array.from(input.files || []);
+
+            if (files.length === 0) {
+                return;
+            }
+
+            event.preventDefault();
+            setError('');
+            setBusy(true);
+
+            try {
+                const optimizedFiles = [];
+
+                for (const file of files) {
+                    optimizedFiles.push(await optimizeProductImage(file));
+                }
+
+                if (! replaceFileSelection(input, optimizedFiles)) {
+                    throw new ProductImageOptimizationError(
+                        'تعذر تجهيز الصور المحددة للرفع. حدّث المتصفح وحاول مرة أخرى.',
+                    );
+                }
+
+                if (previewSelector && optimizedFiles[0]) {
+                    const preview = document.querySelector(previewSelector);
+
+                    if (preview) {
+                        const objectUrl = window.URL.createObjectURL(optimizedFiles[0]);
+                        preview.src = objectUrl;
+                        preview.addEventListener(
+                            'load',
+                            () => window.URL.revokeObjectURL(objectUrl),
+                            { once: true },
+                        );
+                    }
+                }
+
+                form.dataset.imageOptimized = '1';
+
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            } catch (error) {
+                delete form.dataset.imageOptimized;
+                setError(imageErrorMessage(error));
+                setBusy(false);
+            }
+        });
     });
 });
