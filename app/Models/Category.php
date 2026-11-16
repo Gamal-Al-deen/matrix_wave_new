@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Support\PublicCache;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -34,5 +36,43 @@ class Category extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Invalidate the cached public category list whenever a category changes.
+     */
+    protected static function booted(): void
+    {
+        static::saved(static function (): void {
+            PublicCache::forgetAfterCommit(PublicCache::ACTIVE_CATEGORIES);
+        });
+
+        static::deleted(static function (): void {
+            PublicCache::forgetAfterCommit(PublicCache::ACTIVE_CATEGORIES);
+        });
+    }
+
+    /**
+     * Active categories with the number of publicly visible products.
+     *
+     * @return Collection<int, self>
+     */
+    public static function publicWithProductCounts(): Collection
+    {
+        $rows = PublicCache::remember(
+            PublicCache::ACTIVE_CATEGORIES,
+            PublicCache::TTL_ACTIVE_CATEGORIES,
+            static fn (): array => static::query()
+                ->active()
+                ->withCount([
+                    'products' => fn (Builder $query) => $query->publiclyVisible(),
+                ])
+                ->orderBy('name')
+                ->get()
+                ->map(static fn (self $category): array => $category->getAttributes())
+                ->all(),
+        );
+
+        return is_array($rows) ? static::hydrate($rows) : new Collection;
     }
 }

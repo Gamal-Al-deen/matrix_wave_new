@@ -6,11 +6,7 @@
     $phoneHref = preg_replace('/[^\d+]/', '', (string) $settings?->contact_phone);
     // Fixed developer WhatsApp number (not editable from admin settings).
     $developerWhatsApp = 'https://wa.me/967770569805?text='.rawurlencode('مرحبًا، أنا زائر من موقع '.$siteName.' وأرغب في التواصل مع مطوّر الموقع.');
-    $socialLinks = \App\Models\SocialLink::query()
-        ->active()
-        ->orderBy('sort_order')
-        ->orderBy('created_at')
-        ->get();
+    $socialLinks = \App\Models\SocialLink::activeLinks();
     $footerLinks = [
         ['label' => 'الرئيسية', 'route' => 'home'],
         ['label' => 'المنتجات', 'route' => 'products.index'],

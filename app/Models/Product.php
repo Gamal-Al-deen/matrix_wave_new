@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ProductStatus;
+use App\Support\PublicCache;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -66,5 +67,22 @@ class Product extends Model
         return $query
             ->whereIn('status', [ProductStatus::Available, ProductStatus::OutOfStock])
             ->whereHas('category', fn (Builder $category) => $category->where('is_active', true));
+    }
+
+    /**
+     * Product writes change the publicly visible counts cached with categories.
+     *
+     * Restoring a soft-deleted product runs through `save()`, so the `saved`
+     * listener already covers it; no separate `restored` listener is needed.
+     */
+    protected static function booted(): void
+    {
+        static::saved(static function (): void {
+            PublicCache::forgetAfterCommit(PublicCache::ACTIVE_CATEGORIES);
+        });
+
+        static::deleted(static function (): void {
+            PublicCache::forgetAfterCommit(PublicCache::ACTIVE_CATEGORIES);
+        });
     }
 }

@@ -16,13 +16,7 @@ class HomeController extends Controller
 {
     public function index(Request $request): View
     {
-        $categories = Category::query()
-            ->active()
-            ->withCount([
-                'products' => fn (Builder $query) => $query->publiclyVisible(),
-            ])
-            ->orderBy('name')
-            ->get();
+        $categories = Category::publicWithProductCounts();
 
         $categorySlug = trim((string) $request->query('category', ''));
 

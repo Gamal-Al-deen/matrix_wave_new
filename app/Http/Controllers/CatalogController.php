@@ -27,13 +27,7 @@ class CatalogController extends Controller
             $sort = 'newest';
         }
 
-        $categories = Category::query()
-            ->active()
-            ->withCount([
-                'products' => fn (Builder $categoryQuery) => $categoryQuery->publiclyVisible(),
-            ])
-            ->orderBy('name')
-            ->get();
+        $categories = Category::publicWithProductCounts();
 
         $selectedCategory = $categorySlug !== ''
             ? $categories->firstWhere('slug', $categorySlug)

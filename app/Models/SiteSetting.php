@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicCache;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -23,7 +24,7 @@ class SiteSetting extends Model
     /**
      * Container key that reuses the singleton row during a single request.
      */
-    private const CURRENT_CACHE_KEY = 'site_settings.current';
+    public const CURRENT_CACHE_KEY = 'site_settings.current';
 
     public $incrementing = false;
 
@@ -44,7 +45,7 @@ class SiteSetting extends Model
     }
 
     /**
-     * Invalidate the request-level copy whenever the singleton row changes.
+     * Invalidate cached copies whenever the singleton row changes.
      */
     protected static function booted(): void
     {
@@ -58,7 +59,8 @@ class SiteSetting extends Model
     }
 
     /**
-     * Resolve the singleton row once per request.
+     * Resolve the singleton row from the request memo, then the persistent
+     * cache, then the database.
      */
     public static function current(): ?self
     {
@@ -68,18 +70,39 @@ class SiteSetting extends Model
             return $cached instanceof self ? $cached : null;
         }
 
-        $settings = static::query()->find(self::SINGLETON_ID);
+        $payload = PublicCache::remember(
+            PublicCache::SITE_SETTINGS,
+            PublicCache::TTL_SITE_SETTINGS,
+            static function (): array {
+                $settings = static::query()->find(self::SINGLETON_ID);
+
+                return [
+                    'exists' => $settings instanceof self,
+                    'attributes' => $settings?->getAttributes() ?? [],
+                ];
+            },
+        );
+
+        $settings = null;
+
+        if (is_array($payload) && ($payload['exists'] ?? false) === true) {
+            $settings = (new static)->newFromBuilder($payload['attributes'] ?? []);
+        }
+
         self::rememberCurrent($settings);
 
         return $settings;
     }
 
     /**
-     * Drop the request-level copy so the next read queries the database again.
+     * Drop the request-level copy immediately and the persistent copies once
+     * the write commits, so the next read queries the database again.
      */
     public static function forgetCurrent(): void
     {
         app()->forgetInstance(self::CURRENT_CACHE_KEY);
+
+        PublicCache::forgetAfterCommit(PublicCache::SITE_SETTINGS);
     }
 
     private static function rememberCurrent(?self $settings): void
