@@ -97,6 +97,11 @@ return [
             'prefix_indexes' => true,
             'search_path' => env('DB_SEARCH_PATH', 'public'),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'options' => extension_loaded('pdo_pgsql') ? [
+                // Transaction pooling does not guarantee that a server-side
+                // prepared statement survives on the backend it is executed on.
+                PDO::PGSQL_ATTR_DISABLE_PREPARES => true,
+            ] : [],
         ],
 
         'sqlsrv' => [
